@@ -25,8 +25,7 @@ int main(int argc, char **argv)
 
 	renderer->Init(rendererOption);;
 	renderer->SetCamera(cameraOption);
-	do {}
-	while (renderer->UpdateRenderer());
+	renderer->Start();
 
 	// Cleanup
 	cudaDeviceReset();

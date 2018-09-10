@@ -22,19 +22,11 @@ public:
 	virtual ~Renderer() = default;
 	virtual void Init(RendererOption option);
 	virtual void SetCamera(CameraOption option);
-	virtual bool UpdateRenderer();
-
-	// Callbacks
-	static void KeyboardCallback(GLFWwindow* window, int key, int scancode, int action, int mods);
-	static void ResizeCallback(GLFWwindow* window, int width, int height);
-	static void MouseCallback(GLFWwindow* window, int button, int action, int mods);
-	static void ErrorCallback(int errorCode, const char* errorDescription);
+	virtual void Start() = 0;
 
 private:
-	GLFWwindow* window;
 	RendererOption rendererOption;
 	unique_ptr<Camera> camera;
-	float deltaTime;
 };
 
 #endif
