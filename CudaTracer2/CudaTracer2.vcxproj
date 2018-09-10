@@ -12,18 +12,20 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="CudaRenderer.cpp" />
+    <ClCompile Include="GLFWManager.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Renderer.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="CudaRenderer.h" />
+    <ClInclude Include="GLFWManager.h" />
     <ClInclude Include="Renderer.h" />
     <ClInclude Include="TracingCommon.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{2C115A9F-D43B-403C-BE23-2D2340EA0A6F}</ProjectGuid>
     <RootNamespace>CudaTracer2</RootNamespace>
-    <WindowsTargetPlatformVersion>10.0.17134.0</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>10.0.16299.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">

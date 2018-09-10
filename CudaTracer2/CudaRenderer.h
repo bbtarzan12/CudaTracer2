@@ -12,16 +12,12 @@ public:
 	void Init(RendererOption option) override;
 	void SetCamera(CameraOption option) override;
 	void Start() override;
-
-	// Callbacks
-	static void KeyboardCallback(GLFWwindow* window, int key, int scancode, int action, int mods);
-	static void ResizeCallback(GLFWwindow* window, int width, int height);
-	static void MouseCallback(GLFWwindow* window, int button, int action, int mods);
-	static void ErrorCallback(int errorCode, const char* errorDescription);
+	void HandleKeyboard(int key, int scancode, int action, int mods) override;
+	void HandleMouse(int button, int action, int mods) override;
+	void HandleResize(int width, int height) override;
 
 private:
-	GLFWwindow* window;
-	float deltaTime;
+	double deltaTime;
 
 };
 

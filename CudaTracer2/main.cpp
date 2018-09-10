@@ -1,13 +1,12 @@
 #include "CudaRenderer.h"
 
-
 int main(int argc, char **argv)
 {
 
 	unique_ptr<Renderer> renderer = make_unique<CudaRenderer>();
 
 	RendererOption rendererOption;
-	rendererOption.widht = 1280;
+	rendererOption.width = 1280;
 	rendererOption.height = 720;
 	rendererOption.type = RendererType::CUDA;
 

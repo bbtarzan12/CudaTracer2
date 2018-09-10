@@ -1,11 +1,9 @@
 #ifndef TRACINGCOMMON_H
 #define TRACINGCOMMON_H
 
+#include <windows.h> 
 #include <iostream>
 #include <memory>
-
-#include <GL/glew.h>
-#include <GL/glfw3.h>
 
 #include <glm.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -13,7 +11,6 @@
 
 #include <cuda.h>
 #include <curand_kernel.h>
-#include <windows.h> 
 #include <cuda_gl_interop.h>
 #include "cuda_runtime.h"
 #include "curand_kernel.h"
@@ -113,8 +110,8 @@ struct Camera
 
 	__device__ Ray GetRay(curandState* randState, int x, int y, bool enableDof)
 	{
-		float jitterValueX = curand_uniform(randState) - 0.5;
-		float jitterValueY = curand_uniform(randState) - 0.5;
+		float jitterValueX = curand_uniform(randState) - 0.5f;
+		float jitterValueY = curand_uniform(randState) - 0.5f;
 
 		vec3 wDir = glm::normalize(-forward);
 		vec3 uDir = glm::normalize(cross(up, wDir));
@@ -189,6 +186,42 @@ struct Camera
 
 	mat4 view;
 	mat4 proj;
+};
+
+struct Sphere
+{
+	__host__ __device__ Sphere(vec3 position = vec3(0), float radius = 0, int materialID = 0)
+	{
+		this->position = position;
+		this->radius = radius;
+		this->materialID = materialID;
+	}
+	float radius;
+	vec3 position;
+	int materialID;
+	__device__ ObjectIntersection Intersect(const Ray &ray)
+	{
+		bool hit = false;
+		float distance = 0, t = 0;
+		vec3 normal = vec3(0, 0, 0);
+		vec3 op = position - ray.origin;
+		float b = dot(op, ray.direction);
+		float det = b * b - dot(op, op) + radius * radius;
+
+		if (det < EPSILON)
+			return ObjectIntersection(hit, t, normal, materialID);
+		else
+			det = glm::sqrt(det);
+
+		distance = (t = b - det) > EPSILON ? t : ((t = b + det) > EPSILON ? t : 0);
+		if (distance > EPSILON)
+		{
+			hit = true;
+			normal = normalize(ray.direction * distance - op);
+		}
+		ObjectIntersection result = ObjectIntersection(hit, distance, normal, materialID);
+		return result;
+	}
 };
 
 
