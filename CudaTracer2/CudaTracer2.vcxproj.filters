@@ -1,0 +1,65 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="main.cpp" />
+    <ClCompile Include="Renderer.cpp">
+      <Filter>Core</Filter>
+    </ClCompile>
+    <ClCompile Include="GLFWManager.cpp">
+      <Filter>Core</Filter>
+    </ClCompile>
+    <ClCompile Include="ShaderCommon.cpp">
+      <Filter>Common</Filter>
+    </ClCompile>
+    <ClCompile Include="CudaRenderer.cpp">
+      <Filter>CudaRenderer</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="TracingCommon.h">
+      <Filter>Common</Filter>
+    </ClInclude>
+    <ClInclude Include="ShaderCommon.h">
+      <Filter>Common</Filter>
+    </ClInclude>
+    <ClInclude Include="Renderer.h">
+      <Filter>Core</Filter>
+    </ClInclude>
+    <ClInclude Include="GLFWManager.h">
+      <Filter>Core</Filter>
+    </ClInclude>
+    <ClInclude Include="CudaRenderer.h">
+      <Filter>CudaRenderer</Filter>
+    </ClInclude>
+    <ClInclude Include="PathKernel.cuh">
+      <Filter>CudaRenderer</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="Common">
+      <UniqueIdentifier>{28d5d146-4e30-45ae-86c8-31634ef647cc}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Shader">
+      <UniqueIdentifier>{f0c0f9c4-ce12-4b43-a964-3241f1ad3ced}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="CudaRenderer">
+      <UniqueIdentifier>{2fb57dd9-4e17-4ee0-b172-f06f55f20cb8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Core">
+      <UniqueIdentifier>{b538814c-f0ed-4ba6-a09b-4cd7972ae098}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="fragShader.frag">
+      <Filter>Shader</Filter>
+    </None>
+    <None Include="vertShader.vert">
+      <Filter>Shader</Filter>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <CudaCompile Include="PathKernel.cu">
+      <Filter>CudaRenderer</Filter>
+    </CudaCompile>
+  </ItemGroup>
+</Project>

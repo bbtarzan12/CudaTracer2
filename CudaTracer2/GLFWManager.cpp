@@ -33,14 +33,13 @@ void GLFWManager::Init(int width, int height, const char* name, void* renderer)
 		exit(EXIT_FAILURE);
 	}
 	glfwMakeContextCurrent(GLFWManager::Instance().window);
-	glClear(GL_COLOR_BUFFER_BIT);
-
 	glfwSetWindowUserPointer(GLFWManager::Instance().window, renderer);
 	glfwSetInputMode(GLFWManager::Instance().window, GLFW_STICKY_KEYS, GL_TRUE);
 	glfwSetInputMode(GLFWManager::Instance().window, GLFW_STICKY_MOUSE_BUTTONS, GL_TRUE);
 	glfwSetKeyCallback(GLFWManager::Instance().window, KeyboardCallback);
 	glfwSetMouseButtonCallback(GLFWManager::Instance().window, MouseCallback);
 	glfwSetWindowSizeCallback(GLFWManager::Instance().window, ResizeCallback);
+	glfwSetCursorPosCallback(GLFWManager::Instance().window, MousePosCallback);
 
 	glewExperimental = GL_TRUE;
 
@@ -64,6 +63,7 @@ void GLFWManager::Init(int width, int height, const char* name, void* renderer)
 	cout << "[OpenGL] Vendor: " << glGetString(GL_VENDOR) << endl;
 	cout << "[OpenGL] Renderer: " << glGetString(GL_RENDERER) << endl;
 
+	glClearColor(0.1f, 0.1f, 0.1f, 0.0f);
 	glfwSwapInterval(1); // vSync
 	glEnable(GL_CULL_FACE);
 	glEnable(GL_DEPTH_TEST);
@@ -80,11 +80,29 @@ GLFWwindow* GLFWManager::GetWindow()
 	return GLFWManager::Instance().window;
 }
 
+void GLFWManager::GetCursorPos(double* x, double* y)
+{
+	glfwGetCursorPos(GLFWManager::Instance().window, x, y);
+}
+
+void GLFWManager::SetCursorToPos(double x, double y)
+{
+	glfwSetCursorPos(GLFWManager::Instance().window, x, y);
+}
+
+bool GLFWManager::IsKeyDown(int key)
+{
+	return GLFWManager::Instance().keyState[key];
+}
+
+bool GLFWManager::IsMouseDown(int button)
+{
+	return GLFWManager::Instance().mouseState[button];
+}
+
 void GLFWManager::KeyboardCallback(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
-	if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
-		glfwSetWindowShouldClose(window, GLFW_TRUE);
-
+	GLFWManager::Instance().keyState[key] = action == GLFW_PRESS ? true : (action == GLFW_RELEASE ? false : true);
 	Renderer* renderer = reinterpret_cast<Renderer*>(glfwGetWindowUserPointer(window));
 	renderer->HandleKeyboard(key, scancode, action, mods);
 }
@@ -93,20 +111,20 @@ void GLFWManager::ResizeCallback(GLFWwindow* window, int width, int height)
 {
 	Renderer* renderer = reinterpret_cast<Renderer*>(glfwGetWindowUserPointer(window));
 	renderer->HandleResize(width, height);
+	glViewport(0, 0, width, height);
 }
 
 void GLFWManager::MouseCallback(GLFWwindow * window, int button, int action, int mods)
 {
-	if (button == GLFW_MOUSE_BUTTON_MIDDLE)
-	{
-		if (action == GLFW_PRESS)
-			glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-		if (action == GLFW_RELEASE)
-			glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
-	}
-
+	GLFWManager::Instance().mouseState[button] = action == GLFW_PRESS ? true : (action == GLFW_RELEASE ? false : true);
 	Renderer* renderer = reinterpret_cast<Renderer*>(glfwGetWindowUserPointer(window));
-	renderer->HandleMouse(button, action, mods);
+	renderer->HandleMouseClick(button, action, mods);
+}
+
+void GLFWManager::MousePosCallback(GLFWwindow* window, double xPos, double yPos)
+{
+	Renderer* renderer = reinterpret_cast<Renderer*>(glfwGetWindowUserPointer(window));
+	renderer->HandleMouseMotion(xPos, yPos);
 }
 
 void GLFWManager::ErrorCallback(int errorCode, const char* errorDescription)

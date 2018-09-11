@@ -1,5 +1,5 @@
-#ifndef RENDERER_H
-#define RENDERER_H
+#ifndef H_RENDERER
+#define H_RENDERER
 
 #include "GLFWManager.h"
 #include "TracingCommon.h"
@@ -12,11 +12,6 @@ struct RendererOption
 	int width, height;
 };
 
-struct RenderOption
-{
-
-};
-
 class Renderer
 {
 public:
@@ -25,12 +20,13 @@ public:
 	virtual void SetCamera(CameraOption option);
 	virtual void Start() = 0;
 	virtual void HandleKeyboard(int key, int scancode, int action, int mods) = 0;
-	virtual void HandleMouse(int button, int action, int mods) = 0;
+	virtual void HandleMouseClick(int button, int action, int mods) = 0;
+	virtual void HandleMouseMotion(double xPos, double yPos) = 0;
 	virtual void HandleResize(int width, int height) = 0;
 
-private:
+protected:
 	RendererOption rendererOption;
-	unique_ptr<Camera> camera;
+	shared_ptr<Camera> camera;
 };
 
 #endif

@@ -11,14 +11,16 @@ int main(int argc, char **argv)
 	rendererOption.type = RendererType::CUDA;
 
 	CameraOption cameraOption;
-	cameraOption.position = vec3(-18.192522f, 6.537864f, 31.417776f);
+	cameraOption.width = rendererOption.width;
+	cameraOption.height = rendererOption.height;
+	cameraOption.position = vec3(4.0f, 3.0f, -3.0f);
 	cameraOption.fov = 70.0f;
 	cameraOption.nearPlane = 0.1f;
 	cameraOption.farPlane = 1000.0f;
 	cameraOption.moveSpeed = 25.0f;
 	cameraOption.mouseSpeed = 10.0f;
-	cameraOption.pitch = -22.780003f;
-	cameraOption.yaw = 155.000137f;
+	cameraOption.pitch = -34.529;
+	cameraOption.yaw = 319.545f;
 	cameraOption.aperture = 0;
 	cameraOption.focalDistance = 0.1f;
 
@@ -27,7 +29,6 @@ int main(int argc, char **argv)
 	renderer->Start();
 
 	// Cleanup
-	cudaDeviceReset();
 	glfwTerminate();
 	return 0;
 }
