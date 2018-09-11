@@ -2,6 +2,10 @@
 #include "ShaderCommon.h"
 #include "PathKernel.cuh"
 
+#include "imgui.h"
+#include "imgui_impl_glfw.h"
+#include "imgui_impl_opengl3.h"
+
 #include <iostream>
 
 using namespace std;
@@ -67,6 +71,17 @@ void CudaRenderer::Init(RendererOption option)
 	}
 
 	{
+		IMGUI_CHECKVERSION();
+		ImGui::CreateContext();
+		ImGuiIO& io = ImGui::GetIO(); (void) io;
+		io.WantCaptureKeyboard = true;
+		io.WantCaptureMouse = true;
+		ImGui_ImplGlfw_InitForOpenGL(GLFWManager::GetWindow(), false);
+		ImGui_ImplOpenGL3_Init("#version 130");
+		ImGui::StyleColorsDark();
+	}
+
+	{
 		// Scene
 		materials.push_back(Material());
 		materials.push_back(Material(DIFF, vec3(1), vec3(2.2f, 2.2f, 2.2f)));
@@ -102,13 +117,14 @@ void CudaRenderer::Start()
 	float lastTime = glfwGetTime();
 	while (GLFWManager::WindowShouldClose() == 0)
 	{
+		glfwPollEvents();
+
 		float currentTime = glfwGetTime();
 		deltaTime = currentTime - lastTime;
 		lastTime = currentTime;
 
 		Update(deltaTime);
 		Render();
-		glfwPollEvents();
 	}
 }
 
@@ -124,52 +140,81 @@ void CudaRenderer::Render()
 	int width = camera->width;
 	int height = camera->height;
 
-	if (toggleCudaView)
 	{
-		gpuErrorCheck(cudaGraphicsMapResources(1, &viewResource));
-		gpuErrorCheck(cudaGraphicsSubResourceGetMappedArray(&viewArray, viewResource, 0, 0));
-
-		cudaResourceDesc viewCudaArrayResourceDesc;
+		// OpenGL + Cuda
+		if (toggleCudaView)
 		{
-			viewCudaArrayResourceDesc.resType = cudaResourceTypeArray;
-			viewCudaArrayResourceDesc.res.array.array = viewArray;
-		}
+			gpuErrorCheck(cudaGraphicsMapResources(1, &viewResource));
+			gpuErrorCheck(cudaGraphicsSubResourceGetMappedArray(&viewArray, viewResource, 0, 0));
 
-		if (camera->dirty)
+			cudaResourceDesc viewCudaArrayResourceDesc;
+			{
+				viewCudaArrayResourceDesc.resType = cudaResourceTypeArray;
+				viewCudaArrayResourceDesc.res.array.array = viewArray;
+			}
+
+			if (camera->dirty)
+			{
+				frame = 1;
+				camera->ResetDirty();
+			}
+
+			RenderOption option;
+			option.frame = frame;
+			option.enableDof = false;
+			option.loopX = 1;
+			option.loopY = 1;
+			cudaSurfaceObject_t viewCudaSurfaceObject;
+			gpuErrorCheck(cudaCreateSurfaceObject(&viewCudaSurfaceObject, &viewCudaArrayResourceDesc));
+			{
+				RenderKernel(camera, spheres, materials, option, viewCudaSurfaceObject);
+			}
+			gpuErrorCheck(cudaDestroySurfaceObject(viewCudaSurfaceObject));
+			gpuErrorCheck(cudaGraphicsUnmapResources(1, &viewResource));
+			cudaStreamSynchronize(0);
+
+			glActiveTexture(GL_TEXTURE0);
+			glBindTexture(GL_TEXTURE_2D, viewGLTexture);
+
+			glUseProgram(programID);
+
+			glBindVertexArray(VAO);
+			glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+			glBindVertexArray(0);
+			frame++;
+		}
+		else
 		{
-			frame = 1;
-			camera->ResetDirty();
+
 		}
-
-		RenderOption option;
-		option.frame = frame;
-		option.enableDof = false;
-		option.loopX = 1;
-		option.loopY = 1;
-		cudaSurfaceObject_t viewCudaSurfaceObject;
-		gpuErrorCheck(cudaCreateSurfaceObject(&viewCudaSurfaceObject, &viewCudaArrayResourceDesc));
-		{
-			RenderKernel(camera, spheres, materials, option, viewCudaSurfaceObject);
-		}
-		gpuErrorCheck(cudaDestroySurfaceObject(viewCudaSurfaceObject));
-		gpuErrorCheck(cudaGraphicsUnmapResources(1, &viewResource));
-		cudaStreamSynchronize(0);
-
-		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, viewGLTexture);
-
-		glUseProgram(programID);
-
-		glBindVertexArray(VAO);
-		glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-		glBindVertexArray(0);
-		frame++;
 	}
-	else
+
 	{
+		// Imgui
+		ImGui_ImplOpenGL3_NewFrame();
+		ImGui_ImplGlfw_NewFrame();
+		ImGui::NewFrame();
 
+		static float f = 0.0f;
+		static int counter = 0;
+
+		ImGui::Begin("Hello, world!");                          // Create a window called "Hello, world!" and append into it.
+
+		ImGui::Text("This is some useful text.");               // Display some text (you can use a format strings too)
+
+		ImGui::SliderFloat("float", &f, 0.0f, 1.0f);            // Edit 1 float using a slider from 0.0f to 1.0f
+
+		if (ImGui::Button("Button"))                            // Buttons return true when clicked (most widgets return true when edited/activated)
+			counter++;
+		ImGui::SameLine();
+		ImGui::Text("counter = %d", counter);
+
+		ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+		ImGui::End();
+		ImGui::Render();
+		ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 	}
-
+	glfwMakeContextCurrent(GLFWManager::GetWindow());
 	glfwSwapBuffers(GLFWManager::GetWindow());
 }
 
@@ -177,7 +222,6 @@ void CudaRenderer::HandleKeyboard(int key, int scancode, int action, int mods)
 {
 	if(GLFWManager::IsKeyDown(GLFW_KEY_ESCAPE))
 		glfwSetWindowShouldClose(GLFWManager::GetWindow(), GLFW_TRUE);
-
 	if (GLFWManager::IsKeyDown(GLFW_KEY_Q))
 		toggleCudaView = !toggleCudaView;
 }

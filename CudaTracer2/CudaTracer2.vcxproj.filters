@@ -14,6 +14,24 @@
     <ClCompile Include="CudaRenderer.cpp">
       <Filter>CudaRenderer</Filter>
     </ClCompile>
+    <ClCompile Include="imgui.cpp">
+      <Filter>Libraries\Imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="imgui_demo.cpp">
+      <Filter>Libraries\Imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="imgui_draw.cpp">
+      <Filter>Libraries\Imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="imgui_widgets.cpp">
+      <Filter>Libraries\Imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="imgui_impl_opengl3.cpp">
+      <Filter>Libraries\Imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="imgui_impl_glfw.cpp">
+      <Filter>Libraries\Imgui</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="TracingCommon.h">
@@ -34,6 +52,30 @@
     <ClInclude Include="PathKernel.cuh">
       <Filter>CudaRenderer</Filter>
     </ClInclude>
+    <ClInclude Include="imconfig.h">
+      <Filter>Libraries\Imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="imgui.h">
+      <Filter>Libraries\Imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="imgui_internal.h">
+      <Filter>Libraries\Imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="imstb_rectpack.h">
+      <Filter>Libraries\Imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="imstb_textedit.h">
+      <Filter>Libraries\Imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="imstb_truetype.h">
+      <Filter>Libraries\Imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="imgui_impl_glfw.h">
+      <Filter>Libraries\Imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="imgui_impl_opengl3.h">
+      <Filter>Libraries\Imgui</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Common">
@@ -47,6 +89,12 @@
     </Filter>
     <Filter Include="Core">
       <UniqueIdentifier>{b538814c-f0ed-4ba6-a09b-4cd7972ae098}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Libraries">
+      <UniqueIdentifier>{d9f710e1-af8c-473d-a175-e7d1de35832a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Libraries\Imgui">
+      <UniqueIdentifier>{8d43784c-8f41-461b-a2e5-f9867bcbd568}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>

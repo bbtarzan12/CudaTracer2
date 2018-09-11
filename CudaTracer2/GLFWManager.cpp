@@ -36,6 +36,7 @@ void GLFWManager::Init(int width, int height, const char* name, void* renderer)
 	glfwSetWindowUserPointer(GLFWManager::Instance().window, renderer);
 	glfwSetInputMode(GLFWManager::Instance().window, GLFW_STICKY_KEYS, GL_TRUE);
 	glfwSetInputMode(GLFWManager::Instance().window, GLFW_STICKY_MOUSE_BUTTONS, GL_TRUE);
+
 	glfwSetKeyCallback(GLFWManager::Instance().window, KeyboardCallback);
 	glfwSetMouseButtonCallback(GLFWManager::Instance().window, MouseCallback);
 	glfwSetWindowSizeCallback(GLFWManager::Instance().window, ResizeCallback);
@@ -64,7 +65,7 @@ void GLFWManager::Init(int width, int height, const char* name, void* renderer)
 	cout << "[OpenGL] Renderer: " << glGetString(GL_RENDERER) << endl;
 
 	glClearColor(0.1f, 0.1f, 0.1f, 0.0f);
-	glfwSwapInterval(1); // vSync
+	glfwSwapInterval(0); // vSync
 	glEnable(GL_CULL_FACE);
 	glEnable(GL_DEPTH_TEST);
 	glDepthFunc(GL_LESS);

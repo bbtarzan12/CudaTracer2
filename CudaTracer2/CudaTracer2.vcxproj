@@ -9,6 +9,12 @@
   <ItemGroup>
     <ClCompile Include="CudaRenderer.cpp" />
     <ClCompile Include="GLFWManager.cpp" />
+    <ClCompile Include="imgui.cpp" />
+    <ClCompile Include="imgui_demo.cpp" />
+    <ClCompile Include="imgui_draw.cpp" />
+    <ClCompile Include="imgui_impl_glfw.cpp" />
+    <ClCompile Include="imgui_impl_opengl3.cpp" />
+    <ClCompile Include="imgui_widgets.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Renderer.cpp" />
     <ClCompile Include="ShaderCommon.cpp" />
@@ -16,6 +22,14 @@
   <ItemGroup>
     <ClInclude Include="CudaRenderer.h" />
     <ClInclude Include="GLFWManager.h" />
+    <ClInclude Include="imconfig.h" />
+    <ClInclude Include="imgui.h" />
+    <ClInclude Include="imgui_impl_glfw.h" />
+    <ClInclude Include="imgui_impl_opengl3.h" />
+    <ClInclude Include="imgui_internal.h" />
+    <ClInclude Include="imstb_rectpack.h" />
+    <ClInclude Include="imstb_textedit.h" />
+    <ClInclude Include="imstb_truetype.h" />
     <ClInclude Include="PathKernel.cuh" />
     <ClInclude Include="Renderer.h" />
     <ClInclude Include="ShaderCommon.h" />
