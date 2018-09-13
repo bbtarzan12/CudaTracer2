@@ -32,6 +32,9 @@
     <ClCompile Include="imgui_impl_glfw.cpp">
       <Filter>Libraries\Imgui</Filter>
     </ClCompile>
+    <ClCompile Include="ImGuiFileDialog.cpp">
+      <Filter>Libraries\Imgui</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="TracingCommon.h">
@@ -74,6 +77,9 @@
       <Filter>Libraries\Imgui</Filter>
     </ClInclude>
     <ClInclude Include="imgui_impl_opengl3.h">
+      <Filter>Libraries\Imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="ImGuiFileDialog.h">
       <Filter>Libraries\Imgui</Filter>
     </ClInclude>
   </ItemGroup>

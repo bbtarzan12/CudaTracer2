@@ -155,17 +155,22 @@ struct KernelOption
 {
 	int frame;
 	int loopX, loopY;
+	unsigned long seed;
 	bool enableDof;
+	int maxSamples;
 };
 
 struct RenderOption
 {
-	int frame;
-	int loopX, loopY;
-	bool enableDof;
+	int frame = 1;
+	int maxSamples = 1;
+	int loopX = 1, loopY = 1;
+	bool enableDof = false;
+	bool isAccumulate;
+	cudaSurfaceObject_t surf;
 };
 
-__device__ unsigned int WangHash(unsigned int a);
+__host__ __device__ unsigned int WangHash(unsigned int a);
 
 __device__ ObjectIntersection Intersect(Ray ray, KernelArray<Sphere> spheres);
 
@@ -173,8 +178,10 @@ __device__ Ray GetReflectedRay(Ray ray, vec3 hitPoint, glm::vec3 normal, vec3 &m
 
 __device__ vec3 TraceRay(Ray ray, KernelArray<Sphere> spheres, KernelArray<Material> materials, KernelOption option, curandState* randState);
 
-__global__ void PathKernel(Camera* camera, KernelArray<Sphere> spheres, KernelArray<Material> materials, KernelOption option, cudaSurfaceObject_t surface);
+__global__ void PathImageKernel(Camera* camera, KernelArray<Sphere> spheres, KernelArray<Material> materials, KernelOption option, cudaSurfaceObject_t surface);
 
-void RenderKernel(const shared_ptr<Camera>& camera, const thrust::host_vector<Sphere>& spheres, const thrust::host_vector<Material>& materials, const RenderOption& option, cudaSurfaceObject_t surface);
+__global__ void PathAccumulateKernel(Camera* camera, KernelArray<Sphere> spheres, KernelArray<Material> materials, KernelOption option, cudaSurfaceObject_t surface);
+
+void RenderKernel(const shared_ptr<Camera>& camera, const thrust::host_vector<Sphere>& spheres, const thrust::host_vector<Material>& materials, const RenderOption& option);
 
 #endif

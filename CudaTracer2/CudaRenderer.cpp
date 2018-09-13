@@ -5,10 +5,15 @@
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl3.h"
+#include "ImGuiFileDialog.h"
+
+#include <FreeImage.h>
 
 #include <iostream>
 
 using namespace std;
+
+const char* viewTypeArray[] = { "OpenGL", "Accumulate", "Image" };
 
 CudaRenderer::CudaRenderer()
 {
@@ -94,9 +99,9 @@ void CudaRenderer::Init(RendererOption option)
 		spheres.push_back(Sphere(vec3(0, 1040, 0), 1000, 1));
 		spheres.push_back(Sphere(vec3(0, -1010, 0),1000, 4));
 		spheres.push_back(Sphere(vec3(1040, 0, 0), 1000, 4));
-		spheres.push_back(Sphere(vec3(-1040, 0, 0), 1000, 5));
+		spheres.push_back(Sphere(vec3(-1040, 0, 0), 1000, 4));
 		spheres.push_back(Sphere(vec3(0, 0, 1040), 1000, 6));
-		spheres.push_back(Sphere(vec3(0, 0, -1040), 1000, 4));
+		spheres.push_back(Sphere(vec3(0, 0, -1040), 1000, 5));
 		spheres.push_back(Sphere(vec3(20, 0, 14), 8, 2));
 		spheres.push_back(Sphere(vec3(-14, 0, -20), 8, 3));
 	}
@@ -124,7 +129,7 @@ void CudaRenderer::Start()
 		lastTime = currentTime;
 
 		Update(deltaTime);
-		Render();
+		Render(deltaTime);
 	}
 }
 
@@ -134,16 +139,24 @@ void CudaRenderer::Update(float deltaTime)
 	camera->UpdateCamera(deltaTime, input);
 }
 
-void CudaRenderer::Render()
+void CudaRenderer::Render(float deltaTime)
 {
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	int width = camera->width;
-	int height = camera->height;
 
+	ImGui_ImplOpenGL3_NewFrame();
+	ImGui_ImplGlfw_NewFrame();
+	ImGui::NewFrame();
+
+	const int width = camera->width;
+	const int height = camera->height;
+
+
+	// OpenGL + Cuda
+	switch (viewType)
 	{
-		// OpenGL + Cuda
-		if (toggleCudaView)
-		{
+		case ViewType::OPENGL:
+			break;
+		case ViewType::ACCU:
 			gpuErrorCheck(cudaGraphicsMapResources(1, &viewResource));
 			gpuErrorCheck(cudaGraphicsSubResourceGetMappedArray(&viewArray, viewResource, 0, 0));
 
@@ -153,21 +166,18 @@ void CudaRenderer::Render()
 				viewCudaArrayResourceDesc.res.array.array = viewArray;
 			}
 
-			if (camera->dirty)
-			{
-				frame = 1;
-				camera->ResetDirty();
-			}
-
-			RenderOption option;
-			option.frame = frame;
-			option.enableDof = false;
-			option.loopX = 1;
-			option.loopY = 1;
 			cudaSurfaceObject_t viewCudaSurfaceObject;
 			gpuErrorCheck(cudaCreateSurfaceObject(&viewCudaSurfaceObject, &viewCudaArrayResourceDesc));
 			{
-				RenderKernel(camera, spheres, materials, option, viewCudaSurfaceObject);
+				if (camera->dirty)
+				{
+					currentOption.frame = 1;
+					currentOption.isAccumulate = true;
+					currentOption.surf = viewCudaSurfaceObject;
+					camera->ResetDirty();
+				}
+
+				RenderKernel(camera, spheres, materials, currentOption);
 			}
 			gpuErrorCheck(cudaDestroySurfaceObject(viewCudaSurfaceObject));
 			gpuErrorCheck(cudaGraphicsUnmapResources(1, &viewResource));
@@ -181,49 +191,155 @@ void CudaRenderer::Render()
 			glBindVertexArray(VAO);
 			glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 			glBindVertexArray(0);
-			frame++;
-		}
-		else
+			currentOption.frame++;
+			break;
+		case ViewType::IMAGE:
 		{
+			glActiveTexture(GL_TEXTURE0);
+			glBindTexture(GL_TEXTURE_2D, viewGLTexture);
+			glUseProgram(programID);
+			glBindVertexArray(VAO);
+			glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+			glBindVertexArray(0);
+		}
+		{
+			ImGui::SetNextWindowPos(ImVec2(3, 23));
+			ImGui::Begin("Image", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoMove);
 
+			ImGui::Text("Samples : %d", currentOption.frame);
+			if (ImGui::Button("Save Image"))
+			{
+				uiFileSaveDialog = true;
+			}
+
+			ImGui::End();
+		}
+		break;
+		default:
+			break;
+	}
+
+	if (ImGui::BeginMainMenuBar())
+	{
+		if (ImGui::BeginMenu("File"))
+		{
+			if (ImGui::MenuItem("Exit"))
+			{
+				glfwSetWindowShouldClose(GLFWManager::GetWindow(), GLFW_TRUE);
+			}
+			if (ImGui::MenuItem("Import Obj")) {}
+			ImGui::EndMenu();
+		}
+		ImGui::Separator();
+		if (ImGui::BeginMenu("Rendering"))
+		{
+			if (ImGui::MenuItem("Render Image"))
+			{
+				uiRenderingWindow = true;
+			}
+			ImGui::EndMenu();
+		}
+		ImGui::Separator();
+
+		ImGui::SameLine(ImGui::GetWindowWidth() - 400);
+
+		ImGui::PushItemWidth(100);
+		if (ImGui::Combo("combo", (int*) &viewType, viewTypeArray, IM_ARRAYSIZE(viewTypeArray)))
+			camera->dirty = true;
+		ImGui::PopItemWidth();
+		ImGui::Separator();
+		ImGui::Text("%.3f ms/frame (%.1f FPS)", 1000.0f * deltaTime, 1.0f / deltaTime);
+		ImGui::EndMainMenuBar();
+	}
+
+	if (uiRenderingWindow)
+	{
+		ImGui::SetNextWindowPosCenter();
+		ImGui::Begin("Render Settings", nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove);
+
+		ImGui::InputInt("Max Samples", &currentOption.maxSamples);
+		ImGui::Checkbox("Enable Dof", &currentOption.enableDof);
+
+		if (ImGui::Button("Render Start"))
+		{
+			gpuErrorCheck(cudaGraphicsMapResources(1, &viewResource));
+			gpuErrorCheck(cudaGraphicsSubResourceGetMappedArray(&viewArray, viewResource, 0, 0));
+
+			cudaResourceDesc viewCudaArrayResourceDesc;
+			{
+				viewCudaArrayResourceDesc.resType = cudaResourceTypeArray;
+				viewCudaArrayResourceDesc.res.array.array = viewArray;
+			}
+
+			cudaSurfaceObject_t viewCudaSurfaceObject;
+			gpuErrorCheck(cudaCreateSurfaceObject(&viewCudaSurfaceObject, &viewCudaArrayResourceDesc));
+			{
+				currentOption.surf = viewCudaSurfaceObject;
+				currentOption.frame = 1;
+				currentOption.isAccumulate = false;
+				RenderKernel(camera, spheres, materials, currentOption);
+			}
+			gpuErrorCheck(cudaDestroySurfaceObject(viewCudaSurfaceObject));
+			gpuErrorCheck(cudaGraphicsUnmapResources(1, &viewResource));
+			cudaStreamSynchronize(0);
+			currentOption.frame = currentOption.maxSamples;
+			viewType = ViewType::IMAGE;
+			uiRenderingWindow = false;
+		}
+		ImGui::SameLine();
+		if (ImGui::Button("Cancel"))
+		{
+			uiRenderingWindow = false;
+		}
+		ImGui::End();
+	}
+
+	if (uiFileSaveDialog)
+	{
+		if (ImGuiFileDialog::Instance()->FileDialog("Save", ".png", ".", "result.png"))
+		{
+			if (ImGuiFileDialog::Instance()->IsOk)
+			{
+				GLubyte *pixels = new GLubyte[3 * width*height];
+				glPixelStorei(GL_PACK_ALIGNMENT, 1);
+				glReadPixels(0, 0, width, height, GL_RGB, GL_UNSIGNED_BYTE, pixels);
+				FIBITMAP* image = FreeImage_ConvertFromRawBits(pixels, width, height, 3 * width, 24, FI_RGBA_RED_MASK, FI_RGBA_GREEN_MASK, FI_RGBA_BLUE_MASK, false);
+
+				{
+					const unsigned bytesperpixel = FreeImage_GetBPP(image) / 8;
+					const unsigned height = FreeImage_GetHeight(image);
+					const unsigned pitch = FreeImage_GetPitch(image);
+					const unsigned lineSize = FreeImage_GetLine(image);
+
+					BYTE* line = FreeImage_GetBits(image);
+					for (unsigned y = 0; y < height; ++y, line += pitch)
+					{
+						for (BYTE* pixel = line; pixel < line + lineSize; pixel += bytesperpixel)
+						{
+							std::swap(pixel[0], pixel[2]);
+						}
+					}
+				}
+
+				FreeImage_Save(FIF_PNG, image, ImGuiFileDialog::Instance()->GetFilepathName().c_str(), 0);
+				FreeImage_Unload(image);
+				delete pixels;
+			}
+			uiFileSaveDialog = false;
 		}
 	}
 
-	{
-		// Imgui
-		ImGui_ImplOpenGL3_NewFrame();
-		ImGui_ImplGlfw_NewFrame();
-		ImGui::NewFrame();
+	ImGui::Render();
+	ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
-		static float f = 0.0f;
-		static int counter = 0;
 
-		ImGui::Begin("Hello, world!");                          // Create a window called "Hello, world!" and append into it.
-
-		ImGui::Text("This is some useful text.");               // Display some text (you can use a format strings too)
-
-		ImGui::SliderFloat("float", &f, 0.0f, 1.0f);            // Edit 1 float using a slider from 0.0f to 1.0f
-
-		if (ImGui::Button("Button"))                            // Buttons return true when clicked (most widgets return true when edited/activated)
-			counter++;
-		ImGui::SameLine();
-		ImGui::Text("counter = %d", counter);
-
-		ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
-		ImGui::End();
-		ImGui::Render();
-		ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-	}
 	glfwMakeContextCurrent(GLFWManager::GetWindow());
 	glfwSwapBuffers(GLFWManager::GetWindow());
 }
 
 void CudaRenderer::HandleKeyboard(int key, int scancode, int action, int mods)
 {
-	if(GLFWManager::IsKeyDown(GLFW_KEY_ESCAPE))
-		glfwSetWindowShouldClose(GLFWManager::GetWindow(), GLFW_TRUE);
-	if (GLFWManager::IsKeyDown(GLFW_KEY_Q))
-		toggleCudaView = !toggleCudaView;
+
 }
 
 void CudaRenderer::HandleMouseClick(int button, int action, int mods)

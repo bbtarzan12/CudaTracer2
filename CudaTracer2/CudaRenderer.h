@@ -4,6 +4,8 @@
 #include "Renderer.h"
 #include "PathKernel.cuh"
 
+enum class ViewType { OPENGL, ACCU, IMAGE };
+
 class CudaRenderer : public Renderer
 {
 public:
@@ -20,11 +22,9 @@ public:
 
 private:
 	void Update(float deltaTime);
-	void Render();
+	void Render(float deltaTime);
 
 	float deltaTime = 0;
-	bool toggleCudaView = false;
-	int frame = 0;
 
 	// Opengl - Cuda
 	GLuint programID;
@@ -38,6 +38,12 @@ private:
 	// Scene
 	thrust::host_vector<Sphere> spheres;
 	thrust::host_vector<Material> materials;
+
+	// GUI
+	ViewType viewType = ViewType::ACCU;
+	RenderOption currentOption;
+	bool uiRenderingWindow = false;
+	bool uiFileSaveDialog = false;
 };
 
 #endif

@@ -26,6 +26,7 @@ public:
 
 	// Callbacks
 	static void KeyboardCallback(GLFWwindow* window, int key, int scancode, int action, int mods);
+	static void CharCallback(GLFWwindow* window, unsigned int c);
 	static void ResizeCallback(GLFWwindow* window, int width, int height);
 	static void MouseCallback(GLFWwindow* window, int button, int action, int mods);
 	static void MousePosCallback(GLFWwindow* window, double xPos, double yPos);

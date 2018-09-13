@@ -3,6 +3,8 @@
 #include <iostream>
 #include "Renderer.h"
 
+#include <imgui.h>
+
 using namespace std;
 
 GLFWManager & GLFWManager::Instance()
@@ -27,20 +29,21 @@ void GLFWManager::Init(int width, int height, const char* name, void* renderer)
 	glfwWindowHint(GLFW_SAMPLES, 4);
 
 	GLFWManager::Instance().window = glfwCreateWindow(width, height, name, nullptr, nullptr);
-	if (!GLFWManager::Instance().window)
+	if (!GLFWManager::GetWindow())
 	{
 		glfwTerminate();
 		exit(EXIT_FAILURE);
 	}
-	glfwMakeContextCurrent(GLFWManager::Instance().window);
-	glfwSetWindowUserPointer(GLFWManager::Instance().window, renderer);
-	glfwSetInputMode(GLFWManager::Instance().window, GLFW_STICKY_KEYS, GL_TRUE);
-	glfwSetInputMode(GLFWManager::Instance().window, GLFW_STICKY_MOUSE_BUTTONS, GL_TRUE);
+	glfwMakeContextCurrent(GLFWManager::GetWindow());
+	glfwSetWindowUserPointer(GLFWManager::GetWindow(), renderer);
+	glfwSetInputMode(GLFWManager::GetWindow(), GLFW_STICKY_KEYS, GL_TRUE);
+	glfwSetInputMode(GLFWManager::GetWindow(), GLFW_STICKY_MOUSE_BUTTONS, GL_TRUE);
 
-	glfwSetKeyCallback(GLFWManager::Instance().window, KeyboardCallback);
-	glfwSetMouseButtonCallback(GLFWManager::Instance().window, MouseCallback);
-	glfwSetWindowSizeCallback(GLFWManager::Instance().window, ResizeCallback);
-	glfwSetCursorPosCallback(GLFWManager::Instance().window, MousePosCallback);
+	glfwSetKeyCallback(GLFWManager::GetWindow(), KeyboardCallback);
+	glfwSetMouseButtonCallback(GLFWManager::GetWindow(), MouseCallback);
+	glfwSetWindowSizeCallback(GLFWManager::GetWindow(), ResizeCallback);
+	glfwSetCursorPosCallback(GLFWManager::GetWindow(), MousePosCallback);
+	glfwSetCharCallback(GLFWManager::GetWindow(), CharCallback);
 
 	glewExperimental = GL_TRUE;
 
@@ -103,9 +106,28 @@ bool GLFWManager::IsMouseDown(int button)
 
 void GLFWManager::KeyboardCallback(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
+	ImGuiIO& io = ImGui::GetIO();
+	if (action == GLFW_PRESS)
+		io.KeysDown[key] = true;
+	if (action == GLFW_RELEASE)
+		io.KeysDown[key] = false;
+
+	(void) mods;
+	io.KeyCtrl = io.KeysDown[GLFW_KEY_LEFT_CONTROL] || io.KeysDown[GLFW_KEY_RIGHT_CONTROL];
+	io.KeyShift = io.KeysDown[GLFW_KEY_LEFT_SHIFT] || io.KeysDown[GLFW_KEY_RIGHT_SHIFT];
+	io.KeyAlt = io.KeysDown[GLFW_KEY_LEFT_ALT] || io.KeysDown[GLFW_KEY_RIGHT_ALT];
+	io.KeySuper = io.KeysDown[GLFW_KEY_LEFT_SUPER] || io.KeysDown[GLFW_KEY_RIGHT_SUPER];
+
 	GLFWManager::Instance().keyState[key] = action == GLFW_PRESS ? true : (action == GLFW_RELEASE ? false : true);
 	Renderer* renderer = reinterpret_cast<Renderer*>(glfwGetWindowUserPointer(window));
 	renderer->HandleKeyboard(key, scancode, action, mods);
+}
+
+void GLFWManager::CharCallback(GLFWwindow* window, unsigned int c)
+{
+	ImGuiIO& io = ImGui::GetIO();
+	if (c > 0 && c < 0x10000)
+		io.AddInputCharacter((unsigned short) c);
 }
 
 void GLFWManager::ResizeCallback(GLFWwindow* window, int width, int height)

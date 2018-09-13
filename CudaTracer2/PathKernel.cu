@@ -1,5 +1,7 @@
 #include "PathKernel.cuh"
 
+unsigned int kernelSeed;
+
 unsigned int WangHash(unsigned int a)
 {
 	a = (a ^ 61) ^ (a >> 16);
@@ -199,7 +201,7 @@ __device__ Ray GetRay(Camera* camera, int x, int y, bool enableDof, curandState*
 	}
 }
 
-__global__ void PathKernel(Camera* camera, KernelArray<Sphere> spheres, KernelArray<Material> materials, KernelOption option, cudaSurfaceObject_t surface)
+__global__ void PathAccumulateKernel(Camera* camera, KernelArray<Sphere> spheres, KernelArray<Material> materials, KernelOption option, cudaSurfaceObject_t surface)
 {
 	int width = camera->width;
 	int height = camera->height;
@@ -214,14 +216,37 @@ __global__ void PathKernel(Camera* camera, KernelArray<Sphere> spheres, KernelAr
 	surf2Dread(&originColor, surface, x * sizeof(float4), y);
 
 	vec3 resultColor = vec3(0, 0, 0);
-	curand_init(WangHash(threadId) + WangHash(option.frame), 0, 0, &randState);
+	curand_init(WangHash(threadId) + WangHash(option.frame) + WangHash(option.seed), 0, 0, &randState);
 	Ray ray = GetRay(camera, x, y, option.enableDof, &randState);
 	vec3 color = TraceRay(ray, spheres, materials, option, &randState);
 	resultColor = (vec3(originColor.x, originColor.y, originColor.z) * (float) (option.frame - 1) + color) / (float) option.frame;
 	surf2Dwrite(make_float4(resultColor.r, resultColor.g, resultColor.b, 1.0f), surface, x * sizeof(float4), y);
 }
 
-void RenderKernel(const shared_ptr<Camera>& camera, const thrust::host_vector<Sphere>& spheres, const thrust::host_vector<Material>& materials, const RenderOption& option, cudaSurfaceObject_t surface)
+__global__ void PathImageKernel(Camera* camera, KernelArray<Sphere> spheres, KernelArray<Material> materials, KernelOption option, cudaSurfaceObject_t surface)
+{
+	int width = camera->width;
+	int height = camera->height;
+	int x = gridDim.x * blockDim.x * option.loopX + blockIdx.x * blockDim.x + threadIdx.x;
+	int y = gridDim.y * blockDim.y * option.loopY + blockIdx.y * blockDim.y + threadIdx.y;
+	int threadId = (blockIdx.x + blockIdx.y * gridDim.x) * (blockDim.x * blockDim.y) + (threadIdx.y * blockDim.x) + threadIdx.x;
+	int i = y * width + x;
+
+	if (i >= width * height) return;
+	curandState randState;
+
+	vec3 resultColor = vec3(0, 0, 0);
+	for (int s = 0; s < option.maxSamples; s++)
+	{
+		curand_init(WangHash(threadId) + WangHash(option.frame) + WangHash(option.seed) + WangHash(s), 0, 0, &randState);
+		Ray ray = GetRay(camera, x, y, option.enableDof, &randState);
+		resultColor += TraceRay(ray, spheres, materials, option, &randState);
+	}
+	resultColor /= option.maxSamples;
+	surf2Dwrite(make_float4(resultColor.r, resultColor.g, resultColor.b, 1.0f), surface, x * sizeof(float4), y);
+}
+
+void RenderKernel(const shared_ptr<Camera>& camera, const thrust::host_vector<Sphere>& spheres, const thrust::host_vector<Material>& materials, const RenderOption& option)
 {
 	int width = camera->width;
 	int height = camera->height;
@@ -255,12 +280,22 @@ void RenderKernel(const shared_ptr<Camera>& camera, const thrust::host_vector<Sp
 	{
 		for (int j = 0; j < option.loopY; j++)
 		{
+			kernelSeed = WangHash(kernelSeed);
 			KernelOption kernelOption;
 			kernelOption.enableDof = option.enableDof;
 			kernelOption.frame = option.frame;
 			kernelOption.loopX = i;
 			kernelOption.loopY = j;
-			PathKernel << <grid, block >> > (cudaCamera, ConvertToKernel(cudaSpheres), ConvertToKernel(cudaMaterials), kernelOption, surface);
+			kernelOption.seed = kernelSeed;
+			kernelOption.maxSamples = option.maxSamples;
+			if (option.isAccumulate)
+			{
+				PathAccumulateKernel << <grid, block >> > (cudaCamera, ConvertToKernel(cudaSpheres), ConvertToKernel(cudaMaterials), kernelOption, option.surf);
+			}
+			else
+			{
+				PathImageKernel << <grid, block >> > (cudaCamera, ConvertToKernel(cudaSpheres), ConvertToKernel(cudaMaterials), kernelOption, option.surf);
+			}
 			gpuErrorCheck(cudaDeviceSynchronize());
 		}
 	}
