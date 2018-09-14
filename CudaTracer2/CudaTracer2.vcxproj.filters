@@ -35,6 +35,7 @@
     <ClCompile Include="ImGuiFileDialog.cpp">
       <Filter>Libraries\Imgui</Filter>
     </ClCompile>
+    <ClCompile Include="Mesh.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="TracingCommon.h">
@@ -82,6 +83,7 @@
     <ClInclude Include="ImGuiFileDialog.h">
       <Filter>Libraries\Imgui</Filter>
     </ClInclude>
+    <ClInclude Include="Mesh.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Common">
