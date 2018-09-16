@@ -49,7 +49,7 @@
   <PropertyGroup Label="Globals">
     <ProjectGuid>{2C115A9F-D43B-403C-BE23-2D2340EA0A6F}</ProjectGuid>
     <RootNamespace>CudaTracer2</RootNamespace>
-    <WindowsTargetPlatformVersion>10.0.17134.0</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>10.0.16299.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">

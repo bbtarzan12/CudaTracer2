@@ -7,7 +7,7 @@
 
 using namespace glm;
 
-constexpr float KD_TREE_EPSILON = 0.00001f;
+constexpr float KD_TREE_EPSILON = 0.001f;
 constexpr int NUM_TRIS_PER_NODE = 6;
 constexpr bool USE_TIGHT_FITTING_BOUNDING_BOXES = true;
 
@@ -38,7 +38,7 @@ struct Triangle
 
 struct boundingBox
 {
-	glm::vec3 min, max;
+	vec3 min, max;
 };
 
 class KDTreeNode

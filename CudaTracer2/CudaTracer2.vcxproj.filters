@@ -35,7 +35,9 @@
     <ClCompile Include="ImGuiFileDialog.cpp">
       <Filter>Libraries\Imgui</Filter>
     </ClCompile>
-    <ClCompile Include="Mesh.cpp" />
+    <ClCompile Include="Mesh.cpp">
+      <Filter>CudaRenderer</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="TracingCommon.h">
@@ -83,7 +85,9 @@
     <ClInclude Include="ImGuiFileDialog.h">
       <Filter>Libraries\Imgui</Filter>
     </ClInclude>
-    <ClInclude Include="Mesh.h" />
+    <ClInclude Include="Mesh.h">
+      <Filter>CudaRenderer</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Common">

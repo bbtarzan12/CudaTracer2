@@ -370,9 +370,12 @@ KDTreeCPU::KDTreeCPU(int num_tris, glm::vec3 *tris, int num_verts, glm::vec3 *ve
 
 	// Compute bounding box for all triangles.
 	boundingBox bbox = computeTightFittingBoundingBox(num_verts, this->verts);
-
+	bbox.min -= vec3(0.001f);
+	bbox.max += vec3(0.001f);
 	// Build kd-tree and set root node.
 	root = constructTreeMedianSpaceSplit(num_tris, tri_indices, bbox, 1);
+
+	delete[] tri_indices;
 
 	// build rope structure
 	//KDTreeNode* ropes[6] = { NULL };
@@ -573,16 +576,7 @@ KDTreeNode* KDTreeCPU::constructTreeMedianSpaceSplit(int num_tris, int *tri_indi
 	KDTreeNode *node = new KDTreeNode();
 	node->num_tris = num_tris;
 	node->tri_indices = tri_indices;
-
-	// Override passed-in bounding box and create "tightest-fitting" bounding box around passed-in list of triangles.
-	if (USE_TIGHT_FITTING_BOUNDING_BOXES)
-	{
-		node->bbox = computeTightFittingBoundingBox(num_tris, tri_indices);
-	}
-	else
-	{
-		node->bbox = bounds;
-	}
+	node->bbox = bounds;
 
 	// Base case--Number of triangles in node is small enough.
 	if (num_tris <= NUM_TRIS_PER_NODE || curr_depth > 20)

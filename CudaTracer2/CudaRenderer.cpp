@@ -36,6 +36,33 @@ void CudaRenderer::Init(RendererOption option)
 	cout << "[Renderer] CudaRenderer Init" << endl;
 
 	{
+		// Scene
+		materials.push_back(Material());
+		materials.push_back(Material(DIFF, vec3(1), vec3(1.5f, 1.5f, 1.5f)));
+		materials.push_back(Material(SPEC));
+		materials.push_back(Material(TRANS));
+		materials.push_back(Material(DIFF, vec3(0.75f, 0.75f, 0.75f)));
+		materials.push_back(Material(DIFF, vec3(0.25f, 0.25f, 0.75f)));
+		materials.push_back(Material(DIFF, vec3(0.75f, 0.25f, 0.25f)));
+
+		spheres.push_back(Sphere(vec3(0, 1140, 0), 1000, 1));
+		spheres.push_back(Sphere(vec3(0, -1140, 0), 1000, 4));
+		spheres.push_back(Sphere(vec3(1140, 0, 0), 1000, 4));
+		spheres.push_back(Sphere(vec3(-1140, 0, 0), 1000, 4));
+		spheres.push_back(Sphere(vec3(0, 0, 1140), 1000, 6));
+		spheres.push_back(Sphere(vec3(0, 0, -1140), 1000, 5));
+		//spheres.push_back(Sphere(vec3(20, 0, 14), 8, 2));
+		//spheres.push_back(Sphere(vec3(-14, 0, -20), 8, 3));
+
+		Mesh* mesh = new Mesh(vec3(50, 50, 50), "test.obj", 4);
+		KDTreeCPU* tree = new KDTreeCPU(mesh->numTris, mesh->tris, mesh->numVerts, mesh->verts);
+		tree->buildRopeStructure();
+		KDTreeGPU* gpuTree = new KDTreeGPU(tree);
+		meshes.push_back(mesh);
+		trees.push_back(gpuTree);
+	}
+
+	{
 		// Cuda Opengl Interop
 		glEnable(GL_TEXTURE_2D);
 		glGenTextures(1, &viewGLTexture);
@@ -47,7 +74,7 @@ void CudaRenderer::Init(RendererOption option)
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 		}
-		cudaGraphicsGLRegisterImage(&viewResource, viewGLTexture, GL_TEXTURE_2D, cudaGraphicsRegisterFlagsWriteDiscard);
+		gpuErrorCheck(cudaGraphicsGLRegisterImage(&viewResource, viewGLTexture, GL_TEXTURE_2D, cudaGraphicsRegisterFlagsWriteDiscard));
 		glBindTexture(GL_TEXTURE_2D, 0);
 
 		programID = LoadShaders("vertShader.vert", "fragShader.frag");
@@ -84,33 +111,6 @@ void CudaRenderer::Init(RendererOption option)
 		ImGui_ImplGlfw_InitForOpenGL(GLFWManager::GetWindow(), false);
 		ImGui_ImplOpenGL3_Init("#version 130");
 		ImGui::StyleColorsDark();
-	}
-
-	{
-		// Scene
-		materials.push_back(Material());
-		materials.push_back(Material(DIFF, vec3(1), vec3(1.5f, 1.5f, 1.5f)));
-		materials.push_back(Material(SPEC));
-		materials.push_back(Material(TRANS));
-		materials.push_back(Material(DIFF, vec3(0.75f, 0.75f, 0.75f)));
-		materials.push_back(Material(DIFF, vec3(0.25f, 0.25f, 0.75f)));
-		materials.push_back(Material(DIFF, vec3(0.75f, 0.25f, 0.25f)));
-
-		spheres.push_back(Sphere(vec3(0, 1140, 0), 1000, 1));
-		spheres.push_back(Sphere(vec3(0, -1140, 0),1000, 4));
-		spheres.push_back(Sphere(vec3(1140, 0, 0), 1000, 4));
-		spheres.push_back(Sphere(vec3(-1140, 0, 0), 1000, 4));
-		spheres.push_back(Sphere(vec3(0, 0, 1140), 1000, 6));
-		spheres.push_back(Sphere(vec3(0, 0, -1140), 1000, 5));
-		//spheres.push_back(Sphere(vec3(20, 0, 14), 8, 2));
-		//spheres.push_back(Sphere(vec3(-14, 0, -20), 8, 3));
-
-		Mesh* mesh = new Mesh(vec3(50, 50, 50), "test.obj", 4);
-		KDTreeCPU* tree = new KDTreeCPU(mesh->numTris, mesh->tris, mesh->numVerts, mesh->verts);
-		tree->buildRopeStructure();
-		KDTreeGPU* gpuTree = new KDTreeGPU(tree);
-		meshes.push_back(mesh);
-		trees.push_back(gpuTree);
 	}
 }
 

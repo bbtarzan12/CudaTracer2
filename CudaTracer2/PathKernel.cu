@@ -60,7 +60,7 @@ __device__ bool gpuTriIntersect(Ray ray, glm::vec3 v0, glm::vec3 v1, glm::vec3 v
 	// at this stage we can compute t to find out where the intersection point is on the line
 	t = f * glm::dot(e2, q);
 
-	if (t > 0.00001f)
+	if (t > EPSILON)
 	{ // ray intersection
 		normal = gpuComputeTriNormal(v0, v1, v2);
 		return true;
@@ -75,15 +75,15 @@ __device__ bool gpuIsPointToLeftOfSplittingPlane(KDTreeNodeGPU node, const glm::
 {
 	if (node.split_plane_axis == X_AXIS)
 	{
-		return (p.x < node.split_plane_value);
+		return (p.x <= node.split_plane_value);
 	}
 	else if (node.split_plane_axis == Y_AXIS)
 	{
-		return (p.y < node.split_plane_value);
+		return (p.y <= node.split_plane_value);
 	}
 	else if (node.split_plane_axis == Z_AXIS)
 	{
-		return (p.z < node.split_plane_value);
+		return (p.z <= node.split_plane_value);
 	}
 	// Something went wrong because split_plane_axis is not set to one of the three allowed values.
 	else
@@ -94,35 +94,36 @@ __device__ bool gpuIsPointToLeftOfSplittingPlane(KDTreeNodeGPU node, const glm::
 
 __device__ int gpuGetNeighboringNodeIndex(KDTreeNodeGPU node, glm::vec3 p)
 {
-	const float GPU_KD_TREE_EPSILON = 0.00001f;
+
+	const float fabsEpsilon = 0.000001;
 
 	// Check left face.
-	if (fabs(p.x - node.bbox.min.x) < GPU_KD_TREE_EPSILON)
+	if (fabs(p.x - node.bbox.min.x) < fabsEpsilon)
 	{
 		return node.neighbor_node_indices[LEFT];
 	}
 	// Check front face.
-	else if (fabs(p.z - node.bbox.max.z) < GPU_KD_TREE_EPSILON)
+	else if (fabs(p.z - node.bbox.max.z) < fabsEpsilon)
 	{
 		return node.neighbor_node_indices[FRONT];
 	}
 	// Check right face.
-	else if (fabs(p.x - node.bbox.max.x) < GPU_KD_TREE_EPSILON)
+	else if (fabs(p.x - node.bbox.max.x) < fabsEpsilon)
 	{
 		return node.neighbor_node_indices[RIGHT];
 	}
 	// Check back face.
-	else if (fabs(p.z - node.bbox.min.z) < GPU_KD_TREE_EPSILON)
+	else if (fabs(p.z - node.bbox.min.z) < fabsEpsilon)
 	{
 		return node.neighbor_node_indices[BACK];
 	}
 	// Check top face.
-	else if (fabs(p.y - node.bbox.max.y) < GPU_KD_TREE_EPSILON)
+	else if (fabs(p.y - node.bbox.max.y) < fabsEpsilon)
 	{
 		return node.neighbor_node_indices[TOP];
 	}
 	// Check bottom face.
-	else if (fabs(p.y - node.bbox.min.y) < GPU_KD_TREE_EPSILON)
+	else if (fabs(p.y - node.bbox.min.y) < fabsEpsilon)
 	{
 		return node.neighbor_node_indices[BOTTOM];
 	}
@@ -545,22 +546,19 @@ void RenderKernel(const shared_ptr<Camera>& camera, const thrust::host_vector<Sp
 	KDTreeGPU* kd_tree = trees[0];
 
 	// Send mesh triangles to GPU.
-	glm::vec3 *cuda_mesh_tris = NULL;
-	float size_mesh_tris = obj_mesh->numTris * sizeof(glm::vec3);
-	cudaMalloc((void**) &cuda_mesh_tris, size_mesh_tris);
-	cudaMemcpy(cuda_mesh_tris, obj_mesh->tris, size_mesh_tris, cudaMemcpyHostToDevice);
+	glm::vec3 *cuda_mesh_tris;
+	gpuErrorCheck(cudaMalloc((void**) &cuda_mesh_tris, obj_mesh->numTris * sizeof(glm::vec3)));
+	gpuErrorCheck(cudaMemcpy(cuda_mesh_tris, obj_mesh->tris, obj_mesh->numTris * sizeof(glm::vec3), cudaMemcpyHostToDevice));
 
 	// Send mesh vertices to GPU.
-	glm::vec3 *cuda_mesh_verts = NULL;
-	float size_mesh_verts = obj_mesh->numVerts * sizeof(glm::vec3);
-	cudaMalloc((void**) &cuda_mesh_verts, size_mesh_verts);
-	cudaMemcpy(cuda_mesh_verts, obj_mesh->verts, size_mesh_verts, cudaMemcpyHostToDevice);
+	glm::vec3 *cuda_mesh_verts;
+	gpuErrorCheck(cudaMalloc((void**) &cuda_mesh_verts, obj_mesh->numVerts * sizeof(glm::vec3)));
+	gpuErrorCheck(cudaMemcpy(cuda_mesh_verts, obj_mesh->verts, obj_mesh->numVerts * sizeof(glm::vec3), cudaMemcpyHostToDevice));
 
 	// Send kd-tree nodes to GPU.
-	KDTreeNodeGPU *cuda_kd_tree_nodes = NULL;
-	float size_kd_tree_nodes = kd_tree->getNumNodes() * sizeof(KDTreeNodeGPU);
-	cudaMalloc((void**) &cuda_kd_tree_nodes, size_kd_tree_nodes);
-	cudaMemcpy(cuda_kd_tree_nodes, kd_tree->getTreeNodes(), size_kd_tree_nodes, cudaMemcpyHostToDevice);
+	KDTreeNodeGPU *cuda_kd_tree_nodes;
+	gpuErrorCheck(cudaMalloc((void**) &cuda_kd_tree_nodes, kd_tree->getNumNodes() * sizeof(KDTreeNodeGPU)));
+	gpuErrorCheck(cudaMemcpy(cuda_kd_tree_nodes, kd_tree->getTreeNodes(), kd_tree->getNumNodes() * sizeof(KDTreeNodeGPU), cudaMemcpyHostToDevice));
 
 	std::vector<int> kd_tree_tri_indics = kd_tree->getTriIndexList();
 	int *tri_index_array = new int[kd_tree_tri_indics.size()];
@@ -570,10 +568,9 @@ void RenderKernel(const shared_ptr<Camera>& camera, const thrust::host_vector<Sp
 	}
 
 	// Send kd-tree triangle indices to GPU.
-	int *cuda_kd_tree_tri_indices = NULL;
-	float size_kd_tree_tri_indices = kd_tree_tri_indics.size() * sizeof(int);
-	cudaMalloc((void**) &cuda_kd_tree_tri_indices, size_kd_tree_nodes);
-	cudaMemcpy(cuda_kd_tree_tri_indices, tri_index_array, size_kd_tree_tri_indices, cudaMemcpyHostToDevice);
+	int *cuda_kd_tree_tri_indices;
+	gpuErrorCheck(cudaMalloc((void**) &cuda_kd_tree_tri_indices, kd_tree_tri_indics.size() * sizeof(int)));
+	gpuErrorCheck(cudaMemcpy(cuda_kd_tree_tri_indices, tri_index_array, kd_tree_tri_indics.size() * sizeof(int), cudaMemcpyHostToDevice));
 
 
 	gpuErrorCheck(cudaEventCreate(&stop));
