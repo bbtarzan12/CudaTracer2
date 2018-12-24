@@ -37,7 +37,7 @@ private:
 
 	// Scene
 	std::vector<Mesh*> meshes;
-	std::vector<KDTreeGPU*> trees;
+	KDTree* tree;
 	thrust::host_vector<Sphere> spheres;
 	thrust::host_vector<Material> materials;
 

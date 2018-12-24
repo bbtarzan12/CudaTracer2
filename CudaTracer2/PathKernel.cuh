@@ -25,6 +25,7 @@
 #include "device_launch_parameters.h"
 
 #include "Mesh.h"
+#include "KDTree.h"
 
 #define gpuErrorCheck(ans) { gpuAssert((ans), __FILE__, __LINE__); }
 
@@ -156,24 +157,24 @@ struct RenderOption
 
 __host__ __device__ unsigned int WangHash(unsigned int a);
 
-__device__ bool gpuIsPointToLeftOfSplittingPlane(KDTreeNodeGPU node, const glm::vec3 &p);
+__device__ bool gpuIsPointToLeftOfSplittingPlane(KDTreeNode node, const glm::vec3 &p);
 
-__device__ int gpuGetNeighboringNodeIndex(KDTreeNodeGPU node, glm::vec3 p);
+__device__ int gpuGetNeighboringNodeIndex(KDTreeNode node, glm::vec3 p);
 
 __device__ bool gpuAABBIntersect(boundingBox bbox, Ray ray, float &t_near, float &t_far);
 
-__device__ ObjectIntersection StacklessIntersect(Ray ray, int root_index, KDTreeNodeGPU *tree_nodes, int *kd_tri_index_list, glm::vec3 *tris, glm::vec3 *verts);
+__device__ ObjectIntersection StacklessIntersect(Ray ray, int root_index, KDTreeNode *tree_nodes, int *kd_tri_index_list, glm::ivec3 *tris, glm::vec3 *verts);
 
-__device__ ObjectIntersection Intersect(Ray ray, KernelArray<Sphere> spheres, glm::vec3 *mesh_tris, glm::vec3 *mesh_verts, int kd_tree_root_index, KDTreeNodeGPU *kd_tree_nodes, int *kd_tree_tri_indices);
+__device__ ObjectIntersection Intersect(Ray ray, KernelArray<Sphere> spheres, glm::ivec3 *mesh_tris, glm::vec3 *mesh_verts, int kd_tree_root_index, KDTreeNode *kd_tree_nodes, int *kd_tree_tri_indices);
 
 __device__ Ray GetReflectedRay(Ray ray, vec3 hitPoint, glm::vec3 normal, vec3 &mask, Material material, curandState* randState);
 
-__device__ vec3 TraceRay(Ray ray, KernelArray<Sphere> spheres, KernelArray<Material> materials, glm::vec3 *mesh_tris, glm::vec3 *mesh_verts, int kd_tree_root_index, KDTreeNodeGPU *kd_tree_nodes, int *kd_tree_tri_indices, KernelOption option, curandState* randState);
+__device__ vec3 TraceRay(Ray ray, KernelArray<Sphere> spheres, KernelArray<Material> materials, glm::ivec3 *mesh_tris, glm::vec3 *mesh_verts, int kd_tree_root_index, KDTreeNode *kd_tree_nodes, int *kd_tree_tri_indices, KernelOption option, curandState* randState);
 
 __global__ void PathImageKernel(Camera* camera, KernelArray<Sphere> spheres, KernelArray<Material> materials, KernelOption option, cudaSurfaceObject_t surface);
 
-__global__ void PathAccumulateKernel(Camera* camera, KernelArray<Sphere> spheres, KernelArray<Material> materials, glm::vec3 *mesh_tris, glm::vec3 *mesh_verts,int kd_tree_root_index, KDTreeNodeGPU *kd_tree_nodes, int *kd_tree_tri_indices, KernelOption option, cudaSurfaceObject_t surface);
+__global__ void PathAccumulateKernel(Camera* camera, KernelArray<Sphere> spheres, KernelArray<Material> materials, glm::ivec3 *mesh_tris, glm::vec3 *mesh_verts,int kd_tree_root_index, KDTreeNode *kd_tree_nodes, int *kd_tree_tri_indices, KernelOption option, cudaSurfaceObject_t surface);
 
-void RenderKernel(const shared_ptr<Camera>& camera, const thrust::host_vector<Sphere>& spheres, const std::vector<Mesh*> meshes, const std::vector<KDTreeGPU*> trees, const thrust::host_vector<Material>& materials, const RenderOption& option);
+void RenderKernel(const shared_ptr<Camera>& camera, const thrust::host_vector<Sphere>& spheres, const std::vector<Mesh*> meshes, const KDTree* tree, const thrust::host_vector<Material>& materials, const RenderOption& option);
 
 #endif

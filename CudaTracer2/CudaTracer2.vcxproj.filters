@@ -38,6 +38,12 @@
     <ClCompile Include="Mesh.cpp">
       <Filter>CudaRenderer</Filter>
     </ClCompile>
+    <ClCompile Include="KDTree.cpp">
+      <Filter>CudaRenderer</Filter>
+    </ClCompile>
+    <ClCompile Include="MeasureTime.cpp">
+      <Filter>Common</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="TracingCommon.h">
@@ -87,6 +93,12 @@
     </ClInclude>
     <ClInclude Include="Mesh.h">
       <Filter>CudaRenderer</Filter>
+    </ClInclude>
+    <ClInclude Include="KDTree.h">
+      <Filter>CudaRenderer</Filter>
+    </ClInclude>
+    <ClInclude Include="MeasureTime.h">
+      <Filter>Common</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

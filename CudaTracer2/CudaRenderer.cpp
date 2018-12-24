@@ -55,11 +55,13 @@ void CudaRenderer::Init(RendererOption option)
 		//spheres.push_back(Sphere(vec3(-14, 0, -20), 8, 3));
 
 		Mesh* mesh = new Mesh(vec3(50, 50, 50), "test.obj", 4);
-		KDTreeCPU* tree = new KDTreeCPU(mesh->numTris, mesh->tris, mesh->numVerts, mesh->verts);
-		tree->buildRopeStructure();
-		KDTreeGPU* gpuTree = new KDTreeGPU(tree);
+		//KDTreeBuilder* _tree = new KDTreeBuilder(mesh->verts, mesh->tris);
+		//_tree->buildRopeStructure();
+		//tree = new KDTree(_tree);
+		//meshes.push_back(mesh);
+
 		meshes.push_back(mesh);
-		trees.push_back(gpuTree);
+		tree = new KDTree(mesh->verts, mesh->tris);
 	}
 
 	{
@@ -184,7 +186,7 @@ void CudaRenderer::Render(float deltaTime)
 					camera->ResetDirty();
 				}
 
-				RenderKernel(camera, spheres, meshes, trees, materials, currentOption);
+				RenderKernel(camera, spheres, meshes, tree, materials, currentOption);
 			}
 			gpuErrorCheck(cudaDestroySurfaceObject(viewCudaSurfaceObject));
 			gpuErrorCheck(cudaGraphicsUnmapResources(1, &viewResource));
@@ -284,7 +286,7 @@ void CudaRenderer::Render(float deltaTime)
 				currentOption.surf = viewCudaSurfaceObject;
 				currentOption.frame = 1;
 				currentOption.isAccumulate = false;
-				RenderKernel(camera, spheres, meshes, trees, materials, currentOption);
+				RenderKernel(camera, spheres, meshes, tree, materials, currentOption);
 			}
 			gpuErrorCheck(cudaDestroySurfaceObject(viewCudaSurfaceObject));
 			gpuErrorCheck(cudaGraphicsUnmapResources(1, &viewResource));
