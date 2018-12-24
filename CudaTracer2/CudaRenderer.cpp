@@ -10,6 +10,7 @@
 #include <FreeImage.h>
 
 #include <iostream>
+#include <algorithm>
 
 using namespace std;
 
@@ -33,6 +34,7 @@ void CudaRenderer::Init(RendererOption option)
 {
 	Renderer::Init(option);
 	GLFWManager::Init(option.width, option.height, "Cuda Tracer", this);
+	InitCuda("river_walk_1_4k.hdr");
 	cout << "[Renderer] CudaRenderer Init" << endl;
 
 	{
@@ -45,23 +47,34 @@ void CudaRenderer::Init(RendererOption option)
 		materials.push_back(Material(DIFF, vec3(0.25f, 0.25f, 0.75f)));
 		materials.push_back(Material(DIFF, vec3(0.75f, 0.25f, 0.25f)));
 
-		spheres.push_back(Sphere(vec3(0, 1140, 0), 1000, 1));
-		spheres.push_back(Sphere(vec3(0, -1140, 0), 1000, 4));
-		spheres.push_back(Sphere(vec3(1140, 0, 0), 1000, 4));
-		spheres.push_back(Sphere(vec3(-1140, 0, 0), 1000, 4));
-		spheres.push_back(Sphere(vec3(0, 0, 1140), 1000, 6));
-		spheres.push_back(Sphere(vec3(0, 0, -1140), 1000, 5));
-		//spheres.push_back(Sphere(vec3(20, 0, 14), 8, 2));
-		//spheres.push_back(Sphere(vec3(-14, 0, -20), 8, 3));
+		//spheres.push_back(Sphere(vec3(0, 1140, 0), 1000, 1));
+		//spheres.push_back(Sphere(vec3(0, -1140, 0), 1000, 4));
+		//spheres.push_back(Sphere(vec3(1140, 0, 0), 1000, 4));
+		//spheres.push_back(Sphere(vec3(-1140, 0, 0), 1000, 4));
+		//spheres.push_back(Sphere(vec3(0, 0, 1140), 1000, 6));
+		//spheres.push_back(Sphere(vec3(0, 0, -1140), 1000, 5));
 
-		Mesh* mesh = new Mesh(vec3(50, 50, 50), "test.obj", 4);
-		//KDTreeBuilder* _tree = new KDTreeBuilder(mesh->verts, mesh->tris);
-		//_tree->buildRopeStructure();
-		//tree = new KDTree(_tree);
-		//meshes.push_back(mesh);
+		Mesh* mesh1 = new Mesh(vec3(50, 50, 50), "test.obj", 4);
+		Mesh* mesh2 = new Mesh(vec3(0), "test1.obj", 4);
+		Mesh* mesh3 = new Mesh(vec3(0), "test2.obj", 4);
 
-		meshes.push_back(mesh);
-		tree = new KDTree(mesh->verts, mesh->tris);
+		meshes.push_back(mesh1);
+		meshes.push_back(mesh2);
+		meshes.push_back(mesh3);
+
+		vector<vec3> verts;
+		vector<ivec3> tris;
+
+		for (auto & mesh : meshes)
+		{
+			int numVerts = verts.size();
+			verts.reserve(verts.size() + mesh->verts.size());
+			tris.reserve(tris.size() + mesh->tris.size());
+			verts.insert(verts.end(), mesh->verts.begin(), mesh->verts.end());
+			transform(mesh->tris.begin(), mesh->tris.end(), back_inserter(tris), [&](const ivec3& t) { return t + numVerts;; });
+		}
+
+		tree = new KDTree(verts, tris);
 	}
 
 	{

@@ -2,6 +2,9 @@
 
 #include "MeasureTime.h"
 
+#define TINYOBJLOADER_IMPLEMENTATION
+#include "tiny_obj_loader.h"
+
 #include <iostream>
 #include <fstream>
 #include <sstream>
@@ -9,76 +12,69 @@
 
 #pragma region Mesh
 
-std::istream& safeGetline(std::istream& is, std::string& t)
-{
-	t.clear();
-
-	// The characters in the stream are read one-by-one using a std::streambuf.
-	// That is faster than reading them one-by-one using the std::istream.
-	// Code that uses streambuf this way must be guarded by a sentry object.
-	// The sentry object performs various tasks,
-	// such as thread synchronization and updating the stream state.
-
-	std::istream::sentry se(is, true);
-	std::streambuf* sb = is.rdbuf();
-
-	for (;;)
-	{
-		int c = sb->sbumpc();
-		switch (c)
-		{
-			case '\n':
-				return is;
-			case '\r':
-				if (sb->sgetc() == '\n')
-					sb->sbumpc();
-				return is;
-			case EOF:
-				// Also handle the case when the last line has no line ending
-				if (t.empty())
-					is.setstate(std::ios::eofbit);
-				return is;
-			default:
-				t += (char) c;
-		}
-	}
-}
-
-std::vector<std::string> tokenizeString(std::string str)
-{
-	std::stringstream strstr(str);
-	std::istream_iterator<std::string> it(strstr);
-	std::istream_iterator<std::string> end;
-	std::vector<std::string> results(it, end);
-	return results;
-}
-
 Mesh::Mesh(vec3 position /*= vec3(0)*/, string fileName /*= ""*/, int materialID /*= 0*/)
 {
 	auto timer = MeasureTime::Timer();
 	timer.Start("[Mesh] Load Start");
+	
 	this->position = position;
 
-	ifstream ifile;
-	string line;
-	ifile.open(fileName.c_str());
+	tinyobj::attrib_t attrib;
+	vector<tinyobj::shape_t> shapes;
+	vector<tinyobj::material_t> materials;
 
-	while (safeGetline(ifile, line))
+	string warn;
+	string err;
+	string basePath = "./";
+	bool ret = tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, fileName.c_str(), basePath.c_str(), true);
+
+	if (!warn.empty())
 	{
-		vector<string> tokens = tokenizeString(line);
+		cout << "WARN: " << warn << endl;
+	}
 
-		if (!tokens.empty() && strcmp(tokens[0].c_str(), "v") == 0)
+	if (!err.empty())
+	{
+		cerr << "ERR: " << err << endl;
+	}
+
+	if (!ret)
+	{
+		cout << "Failed to load/parse" << fileName << endl;
+	}
+
+	for (size_t v = 0; v < attrib.vertices.size() / 3; v++)
+	{
+		verts.emplace_back(attrib.vertices[3 * v + 0], attrib.vertices[3 * v + 1], attrib.vertices[3 * v + 2]);
+	}
+
+	for (size_t v = 0; v < attrib.normals.size() / 3; v++)
+	{
+		norms.emplace_back(attrib.normals[3 * v + 0], attrib.normals[3 * v + 1], attrib.normals[3 * v + 2]);
+	}
+
+	for (size_t v = 0; v < attrib.texcoords.size() / 2; v++)
+	{
+		uvs.emplace_back(attrib.texcoords[2 * v], attrib.texcoords[2 * v + 1]);
+	}
+
+	for (auto & shape : shapes)
+	{
+		size_t index_offset = 0;
+
+		for (auto & triangle : shape.mesh.num_face_vertices)
 		{
-			verts.emplace_back(atof(tokens[1].c_str()), atof(tokens[2].c_str()), atof(tokens[3].c_str()));
-		}
-		else if (!tokens.empty() && strcmp(tokens[0].c_str(), "f") == 0)
-		{
-			char* findex1 = strtok(const_cast<char*>(tokens[1].c_str()), "/");
-			char* findex2 = strtok(const_cast<char*>(tokens[2].c_str()), "/");
-			char* findex3 = strtok(const_cast<char*>(tokens[3].c_str()), "/");
-			tris.emplace_back(atoi(findex1) - 1, atoi(findex2) - 1, atoi(findex3) - 1);
+			// For each vertex in the face
+
+			tinyobj::index_t idx = shape.mesh.indices[index_offset];
+			tinyobj::index_t idy = shape.mesh.indices[index_offset + 1];
+			tinyobj::index_t idz = shape.mesh.indices[index_offset + 2];
+
+			tris.emplace_back(idx.vertex_index, idy.vertex_index, idz.vertex_index);
+			index_offset += 3;
 		}
 	}
+
 	timer.End("[Mesh] Load Success");
 }
 

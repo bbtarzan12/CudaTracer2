@@ -14,6 +14,8 @@ public:
 
 	vec3 position;
 	vector<vec3> verts;
+	vector<vec3> norms;
+	vector<vec2> uvs;
 	vector<ivec3> tris;
 };
 

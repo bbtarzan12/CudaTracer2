@@ -1,8 +1,15 @@
 #include "PathKernel.cuh"
 
+#include <FreeImage.h>
+
 unsigned int kernelSeed;
 
-unsigned int WangHash(unsigned int a)
+// HDR Texture
+texture<float4, 1, cudaReadModeElementType> HDRtexture;
+float4* cudaHDRmap;
+unsigned int hdrHeight, hdrWidth;
+
+__host__ __device__ unsigned int WangHash(unsigned int a)
 {
 	a = (a ^ 61) ^ (a >> 16);
 	a = a + (a << 3);
@@ -95,7 +102,7 @@ __device__ bool gpuIsPointToLeftOfSplittingPlane(KDTreeNode node, const glm::vec
 __device__ int gpuGetNeighboringNodeIndex(KDTreeNode node, glm::vec3 p)
 {
 
-	const float fabsEpsilon = 0.000001;
+	const float fabsEpsilon = 0.000005;
 
 	// Check left face.
 	if (fabs(p.x - node.bbox.min.x) < fabsEpsilon)
@@ -231,10 +238,10 @@ __device__ ObjectIntersection StacklessIntersect(Ray ray, int root_index, KDTree
 		// Check intersection with triangles contained in current leaf node.
 		for (int i = curr_node.first_tri_index; i < (curr_node.first_tri_index + curr_node.num_tris); ++i)
 		{
-			glm::vec3 tri = tris[kd_tri_index_list[i]];
-			glm::vec3 v0 = verts[(int) tri[0]];
-			glm::vec3 v1 = verts[(int) tri[1]];
-			glm::vec3 v2 = verts[(int) tri[2]];
+			glm::ivec3 tri = tris[kd_tri_index_list[i]];
+			glm::vec3 v0 = verts[tri.x];
+			glm::vec3 v1 = verts[tri.y];
+			glm::vec3 v2 = verts[tri.z];
 
 			// Perform ray/triangle intersection test.
 			float tmp_t = INF;
@@ -287,6 +294,8 @@ __device__ ObjectIntersection Intersect(Ray ray, KernelArray<Sphere> spheres, gl
 {
 	ObjectIntersection intersection = ObjectIntersection();
 	ObjectIntersection temp = ObjectIntersection();
+
+	intersection.t = INF;
 
 	for (int i = 0; i < spheres.size; i++)
 	{
@@ -413,9 +422,24 @@ __device__ vec3 TraceRay(Ray ray, KernelArray<Sphere> spheres, KernelArray<Mater
 	{
 		ObjectIntersection intersection = Intersect(ray, spheres, mesh_tris, mesh_verts, kd_tree_root_index, kd_tree_nodes, kd_tree_tri_indices);
 
-		if (intersection.hit == 0)
+		if (!intersection.hit)
 		{
-			return resultColor;
+			float longlatX = atan2(ray.direction.x, ray.direction.z);
+			longlatX = longlatX < EPSILON ? longlatX + two_pi<float>() : longlatX;
+			float longlatY = acos(-ray.direction.y);
+
+			float u = longlatX / two_pi<float>();
+			float v = longlatY / pi<float>();
+
+			int u2 = (int)(u * option.hdrWidth);
+			int tvec = (int)(v * option.hdrHeight);
+
+			int HDRtexelidx = u2 + tvec * option.hdrWidth;
+
+			float4 HDRcol = tex1Dfetch(HDRtexture, HDRtexelidx);
+			vec3 HDRcol2 = vec3(HDRcol.x, HDRcol.y, HDRcol.z);
+
+			return resultColor + (mask * HDRcol2);
 		}
 
 		vec3 hitPoint = ray.origin + ray.direction * intersection.t;
@@ -525,6 +549,53 @@ __global__ void PathImageKernel(Camera* camera, KernelArray<Sphere> spheres, Ker
 	//surf2Dwrite(make_float4(resultColor.r, resultColor.g, resultColor.b, 1.0f), surface, x * sizeof(float4), y);
 }
 
+void InitCuda(const char* hdrFileName)
+{
+	FREE_IMAGE_FORMAT fif = FIF_HDR;
+	FIBITMAP *src(nullptr);
+	FIBITMAP *dst(nullptr);
+	BYTE* bits(nullptr);
+	float4* cpuHDRmap;
+
+	src = FreeImage_Load(fif, hdrFileName);
+	dst = FreeImage_ToneMapping(src, FITMO_REINHARD05);
+	bits = FreeImage_GetBits(dst);
+	if (bits == nullptr)
+		return;
+
+	hdrHeight = FreeImage_GetHeight(src);
+	hdrWidth = FreeImage_GetWidth(src);
+
+	cpuHDRmap = new float4[ hdrHeight * hdrWidth ];
+
+	for (int x = 0; x < hdrWidth; x++)
+	{
+		for (int y = 0; y < hdrHeight; y++)
+		{
+			RGBQUAD rgbQuad;
+			FreeImage_GetPixelColor(dst, x, y, &rgbQuad);
+			cpuHDRmap[y*hdrWidth + x].x = rgbQuad.rgbRed / 256.0f;
+			cpuHDRmap[y*hdrWidth + x].y = rgbQuad.rgbGreen / 256.0f;
+			cpuHDRmap[y*hdrWidth + x].z = rgbQuad.rgbBlue / 256.0f;
+			cpuHDRmap[y*hdrWidth + x].w = 1.0f;
+		}
+	}
+
+	gpuErrorCheck(cudaMalloc(&cudaHDRmap, hdrWidth * hdrHeight * sizeof(float4)));
+	gpuErrorCheck(cudaMemcpy(cudaHDRmap, cpuHDRmap, hdrWidth * hdrHeight * sizeof(float4), cudaMemcpyHostToDevice));
+
+	HDRtexture.filterMode = cudaFilterModeLinear;
+	cudaChannelFormatDesc channel4desc = cudaCreateChannelDesc<float4>();
+	cudaBindTexture(NULL, &HDRtexture, cudaHDRmap, &channel4desc, hdrWidth * hdrHeight * sizeof(float4));
+
+	printf("[CUDA] Load HDR Map Success\n");
+	printf("[HDR] Width : %d Height : %d\n", hdrWidth, hdrHeight);
+
+	FreeImage_Unload(src);
+	FreeImage_Unload(dst);
+	delete cpuHDRmap;
+}
+
 void RenderKernel(const shared_ptr<Camera>& camera, const thrust::host_vector<Sphere>& spheres, const std::vector<Mesh*> meshes, const KDTree* tree, const thrust::host_vector<Material>& materials, const RenderOption& option)
 {
 	int width = camera->width;
@@ -569,7 +640,6 @@ void RenderKernel(const shared_ptr<Camera>& camera, const thrust::host_vector<Sp
 	gpuErrorCheck(cudaMalloc((void**) &cuda_kd_tree_tri_indices, kd_tree_tri_indics.size() * sizeof(int)));
 	gpuErrorCheck(cudaMemcpy(cuda_kd_tree_tri_indices, tri_index_array, kd_tree_tri_indics.size() * sizeof(int), cudaMemcpyHostToDevice));
 
-
 	gpuErrorCheck(cudaEventCreate(&stop));
 	gpuErrorCheck(cudaEventRecord(stop, 0));
 	gpuErrorCheck(cudaEventSynchronize(stop));
@@ -595,6 +665,8 @@ void RenderKernel(const shared_ptr<Camera>& camera, const thrust::host_vector<Sp
 			kernelOption.loopY = j;
 			kernelOption.seed = kernelSeed;
 			kernelOption.maxSamples = option.maxSamples;
+			kernelOption.hdrHeight = hdrHeight;
+			kernelOption.hdrWidth = hdrWidth;
 			if (option.isAccumulate)
 			{
 				PathAccumulateKernel << <grid, block >> > (cudaCamera, ConvertToKernel(cudaSpheres), ConvertToKernel(cudaMaterials), cuda_mesh_tris, cuda_mesh_verts, tree->getRootIndex(), cuda_kd_tree_nodes, cuda_kd_tree_tri_indices, kernelOption, option.surf);

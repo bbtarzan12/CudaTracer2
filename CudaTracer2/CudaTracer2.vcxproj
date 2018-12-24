@@ -41,6 +41,7 @@
     <ClInclude Include="PathKernel.cuh" />
     <ClInclude Include="Renderer.h" />
     <ClInclude Include="ShaderCommon.h" />
+    <ClInclude Include="tiny_obj_loader.h" />
     <ClInclude Include="TracingCommon.h" />
   </ItemGroup>
   <ItemGroup>
