@@ -2,6 +2,7 @@
 #define H_PATHKERNEL
 
 #include "TracingCommon.h"
+#include "KDTree.h"
 
 #include <windows.h> 
 #include <iostream>
@@ -24,16 +25,10 @@
 #include "curand_kernel.h"
 #include "device_launch_parameters.h"
 
-#include "Mesh.h"
-#include "KDTree.h"
-
 #define gpuErrorCheck(ans) { gpuAssert((ans), __FILE__, __LINE__); }
 
 constexpr float EPSILON = 1e-3f;
 constexpr float INF = 3.402823466e+38F;
-
-
-enum MaterialType { NONE, DIFF, GLOSS, TRANS, SPEC };
 
 inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort = true)
 {
@@ -53,19 +48,6 @@ struct Ray
 		this->origin = origin;
 		this->direction = direction;
 	}
-};
-
-struct Material
-{
-	__host__ __device__ Material(MaterialType type = DIFF, vec3 color = vec3(1), vec3 emission = vec3(0))
-	{
-		this->type = type;
-		this->color = color;
-		this->emission = emission;
-	}
-	MaterialType type;
-	vec3 color;
-	vec3 emission;
 };
 
 struct ObjectIntersection
@@ -146,12 +128,13 @@ struct KernelOption
 	int hdrHeight, hdrWidth;
 
 	KernelArray<Sphere> spheres;
-	KernelArray<Material> materials;
 	
 	ivec3* vertexIndices;
 	ivec3* normalIndices;
+	int* materialIndices;
 	vec3* verts;
 	vec3* norms;
+	Material* materials;
 	int kdTreeRootIndex;
 	KDTreeNode* kdTreeNodes;
 	int* kdTreeTriIndices;
@@ -170,6 +153,6 @@ struct RenderOption
 
 void InitHDRTexture(const char* hdrFileName);
 
-void RenderKernel(const shared_ptr<Camera>& camera, const thrust::host_vector<Sphere>& spheres, const KDTree* tree, const thrust::host_vector<Material>& materials, const RenderOption& option);
+void RenderKernel(const shared_ptr<Camera>& camera, const thrust::host_vector<Sphere>& spheres, KDTree* tree, const RenderOption& option);
 
 #endif

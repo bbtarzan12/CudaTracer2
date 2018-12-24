@@ -39,7 +39,6 @@ private:
 	std::vector<Mesh> meshes;
 	KDTree* tree;
 	thrust::host_vector<Sphere> spheres;
-	thrust::host_vector<Material> materials;
 
 	// GUI
 	ViewType viewType = ViewType::ACCU;

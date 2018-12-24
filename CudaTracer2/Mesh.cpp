@@ -12,7 +12,7 @@
 
 #pragma region Mesh
 
-Mesh::Mesh(vec3 position /*= vec3(0)*/, string fileName /*= ""*/, int materialID /*= 0*/)
+Mesh::Mesh(vec3 position /*= vec3(0)*/, string fileName /*= ""*/)
 {
 	auto timer = MeasureTime::Timer();
 	timer.Start("[Mesh] Load Start");
@@ -60,6 +60,7 @@ Mesh::Mesh(vec3 position /*= vec3(0)*/, string fileName /*= ""*/, int materialID
 	{
 		size_t index_offset = 0;
 
+		materialIndices = move(shape.mesh.material_ids);
 		for (auto & triangle : shape.mesh.num_face_vertices)
 		{
 			tinyobj::index_t idx = shape.mesh.indices[index_offset];
@@ -70,6 +71,14 @@ Mesh::Mesh(vec3 position /*= vec3(0)*/, string fileName /*= ""*/, int materialID
 			normalIndices.emplace_back(idx.normal_index, idy.normal_index, idz.normal_index);
 			index_offset += 3;
 		}
+	}
+
+	for (auto& objMaterial : materials)
+	{
+		Material material;
+		material.color = vec3(objMaterial.diffuse[0], objMaterial.diffuse[1], objMaterial.diffuse[2]);
+		material.emission = vec3(objMaterial.emission[0], objMaterial.emission[1], objMaterial.emission[2]);
+		this->materials.push_back(material);
 	}
 
 	timer.End("[Mesh] Load Success");

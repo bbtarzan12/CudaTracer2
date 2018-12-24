@@ -3,20 +3,38 @@
 
 #include <glm.hpp>
 #include <vector>
+#include "cuda_runtime.h"
 
 using namespace std;
 using namespace glm;
 
+enum MaterialType { NONE, DIFF, GLOSS, TRANS, SPEC };
+
+struct Material
+{
+	__host__ __device__ Material(MaterialType type = DIFF, vec3 color = vec3(1), vec3 emission = vec3(0))
+	{
+		this->type = type;
+		this->color = color;
+		this->emission = emission;
+	}
+	MaterialType type;
+	vec3 color;
+	vec3 emission;
+};
+
 class Mesh
 {
 public:
-	Mesh(vec3 position = vec3(0), std::string fileName = "", int materialID = 0);
+	Mesh(vec3 position = vec3(0), std::string fileName = "");
 
 	vector<vec3> verts;
 	vector<vec3> norms;
 	vector<vec2> uvs;
+	vector<Material> materials;
 	vector<ivec3> vertexIndices;
 	vector<ivec3> normalIndices;
+	vector<int> materialIndices;
 };
 
 #endif

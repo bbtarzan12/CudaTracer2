@@ -330,7 +330,7 @@ void KDTreeNode::prettyPrint()
 // Constructor/destructor.
 ////////////////////////////////////////////////////
 
-KDTreeBuilder::KDTreeBuilder(vector<vec3> verts, vector<ivec3> tris)
+KDTreeBuilder::KDTreeBuilder(thrust::host_vector<vec3> verts, thrust::host_vector<ivec3> tris)
 {
 	// Set class-level variables.
 	num_levels = 0;
@@ -457,12 +457,12 @@ int KDTreeBuilder::getMeshNumTris(void) const
 	return tris.size();
 }
 
-vector<vec3> KDTreeBuilder::getMeshVerts(void) const
+thrust::host_vector<vec3> KDTreeBuilder::getMeshVerts(void) const
 {
 	return verts;
 }
 
-vector<ivec3> KDTreeBuilder::getMeshTris(void) const
+thrust::host_vector<ivec3> KDTreeBuilder::getMeshTris(void) const
 {
 	return tris;
 }
@@ -472,7 +472,7 @@ vector<ivec3> KDTreeBuilder::getMeshTris(void) const
 // Methods to compute tight fitting bounding boxes around triangles.
 ////////////////////////////////////////////////////
 
-boundingBox KDTreeBuilder::computeTightFittingBoundingBox(const vector<vec3>& verts)
+boundingBox KDTreeBuilder::computeTightFittingBoundingBox(thrust::host_vector<vec3> verts)
 {
 	// Compute bounding box for input mesh.
 	glm::vec3 max = glm::vec3(-10000000, -10000000, -10000000);
@@ -516,7 +516,7 @@ boundingBox KDTreeBuilder::computeTightFittingBoundingBox(const vector<vec3>& ve
 boundingBox KDTreeBuilder::computeTightFittingBoundingBox(int num_tris, int *tri_indices)
 {
 	int num_verts = num_tris * 3;
-	vector<vec3> verts(num_verts);
+	thrust::host_vector<vec3> verts(num_verts);
 
 	int verts_index;
 	for (int i = 0; i < num_tris; ++i)
@@ -956,7 +956,7 @@ void KDTreeBuilder::printNodeIdsAndBounds(KDTreeBuilderNode *curr_node)
 // Construtor/destructor.
 ////////////////////////////////////////////////////
 
-KDTree::KDTree(vector<vec3> verts, vector<ivec3> vertexIndices, vector<vec3> norms, vector<ivec3> normalIndices)
+KDTree::KDTree(thrust::host_vector<vec3> verts, thrust::host_vector<ivec3> vertexIndices, thrust::host_vector<vec3> norms, thrust::host_vector<ivec3> normalIndices, thrust::host_vector<Material> materials, thrust::host_vector<int> materialIndices)
 {
 	auto timer = MeasureTime::Timer();
 	timer.Start("[KDTree] Build Start");
@@ -967,14 +967,16 @@ KDTree::KDTree(vector<vec3> verts, vector<ivec3> vertexIndices, vector<vec3> nor
 
 	this->verts = verts;
 	this->norms = norms;
+	this->materials = materials;
 	this->vertexIndices = vertexIndices;
 	this->normalIndices = normalIndices;
+	this->materialIndices = materialIndices;
 
 	num_verts = this->verts.size();
 	num_tris = this->vertexIndices.size();
 
 	// Allocate memory for all nodes in GPU kd-tree.
-	tree_nodes = vector<KDTreeNode>(num_nodes);
+	tree_nodes = thrust::host_vector<KDTreeNode>(num_nodes);
 
 	// Populate tree_nodes and tri_index_list.
 	tri_index_list.clear();
@@ -997,32 +999,42 @@ int KDTree::getRootIndex() const
 	return root_index;
 }
 
-vector<KDTreeNode> KDTree::getTreeNodes() const
+thrust::host_vector<KDTreeNode> KDTree::getTreeNodes() const
 {
 	return tree_nodes;
 }
 
-vector<vec3> KDTree::getMeshVerts() const
+thrust::host_vector<vec3> KDTree::getMeshVerts() const
 {
 	return verts;
 }
 
-std::vector<glm::vec3> KDTree::getMeshNorms(void) const
+thrust::host_vector<glm::vec3> KDTree::getMeshNorms(void) const
 {
 	return norms;
 }
 
-vector<ivec3> KDTree::getVertexIndices() const
+thrust::host_vector<Material> KDTree::getMeshMaterials(void) const
+{
+	return materials;
+}
+
+thrust::host_vector<ivec3> KDTree::getVertexIndices() const
 {
 	return vertexIndices;
 }
 
-std::vector<glm::ivec3> KDTree::getNormalIndices(void) const
+thrust::host_vector<glm::ivec3> KDTree::getNormalIndices(void) const
 {
 	return normalIndices;
 }
 
-std::vector<int> KDTree::getTriIndexList() const
+thrust::host_vector<int> KDTree::getMaterialIndices(void) const
+{
+	return materialIndices;
+}
+
+thrust::host_vector<int> KDTree::getTriIndexList()
 {
 	return tri_index_list;
 }

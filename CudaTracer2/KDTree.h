@@ -1,9 +1,12 @@
 #ifndef H_KDTREE
 #define H_KDTREE
 
+#include "Mesh.h"
+
+#include <thrust/host_vector.h>
 #include <glm.hpp>
 #include "cuda_runtime.h"
-#include <vector>
+
 
 using namespace std;
 using namespace glm;
@@ -98,7 +101,7 @@ public:
 class KDTreeBuilder
 {
 public:
-	KDTreeBuilder(vector<vec3> verts, vector<ivec3> tris);
+	KDTreeBuilder(thrust::host_vector<vec3> verts, thrust::host_vector<ivec3> tris);
 	~KDTreeBuilder(void);
 
 	void buildRopeStructure(void);
@@ -112,8 +115,8 @@ public:
 	// Input mesh getters.
 	int getMeshNumVerts(void) const;
 	int getMeshNumTris(void) const;
-	vector<vec3> getMeshVerts(void) const;
-	vector<ivec3> getMeshTris(void) const;
+	thrust::host_vector<vec3> getMeshVerts(void) const;
+	thrust::host_vector<ivec3> getMeshTris(void) const;
 
 	// Debug methods.
 	void printNumTrianglesInEachNode(KDTreeBuilderNode *curr_node, int curr_depth = 1);
@@ -124,8 +127,8 @@ private:
 	KDTreeBuilderNode *root;
 	int num_levels, num_leaves, num_nodes;
 
-	vector<vec3> verts;
-	vector<ivec3> tris;
+	thrust::host_vector<vec3> verts;
+	thrust::host_vector<ivec3> tris;
 
 	KDTreeBuilderNode* constructTreeMedianSpaceSplit(int num_tris, int *tri_indices, boundingBox bounds, int curr_depth);
 
@@ -135,7 +138,7 @@ private:
 
 	// Bounding box getters.
 	SplitAxis getLongestBoundingBoxSide(glm::vec3 min, glm::vec3 max);
-	boundingBox computeTightFittingBoundingBox(const vector<vec3>& verts);
+	boundingBox computeTightFittingBoundingBox(thrust::host_vector<vec3> verts);
 	boundingBox computeTightFittingBoundingBox(int num_tris, int *tri_indices);
 
 	// Triangle getters.
@@ -146,17 +149,19 @@ private:
 class KDTree
 {
 public:
-	KDTree(vector<vec3> verts, vector<ivec3> vertexIndices, vector<vec3> norms, vector<ivec3> normalIndices);
+	KDTree(thrust::host_vector<vec3> verts, thrust::host_vector<ivec3> vertexIndices, thrust::host_vector<vec3> norms, thrust::host_vector<ivec3> normalIndices, thrust::host_vector<Material> materials, thrust::host_vector<int> materialIndices);
 	~KDTree(void);
 
 	// Getters.
 	int getRootIndex(void) const;
-	vector<KDTreeNode> getTreeNodes(void) const;
-	vector<vec3> getMeshVerts(void) const;
-	vector<vec3> getMeshNorms(void) const;
-	vector<ivec3> getVertexIndices(void) const;
-	vector<ivec3> getNormalIndices(void) const;
-	std::vector<int> getTriIndexList(void) const;
+	thrust::host_vector<KDTreeNode> getTreeNodes(void) const;
+	thrust::host_vector<vec3> getMeshVerts(void) const;
+	thrust::host_vector<vec3> getMeshNorms(void) const;
+	thrust::host_vector<Material> getMeshMaterials(void) const;
+	thrust::host_vector<ivec3> getVertexIndices(void) const;
+	thrust::host_vector<ivec3> getNormalIndices(void) const;
+	thrust::host_vector<int> getMaterialIndices(void) const;
+	thrust::host_vector<int> getTriIndexList(void);
 	int getNumNodes(void) const;
 
 	// Debug method.
@@ -164,18 +169,20 @@ public:
 
 private:
 	KDTreeBuilder* builder;
-	vector<KDTreeNode> tree_nodes;
-	vector<int> tri_index_list;
+	thrust::host_vector<KDTreeNode> tree_nodes;
+	thrust::host_vector<int> tri_index_list;
 
 	int num_nodes;
 	int root_index;
 
 	// Input mesh variables.
 	int num_verts, num_tris;
-	vector<vec3> verts;
-	vector<vec3> norms;
-	vector<ivec3> vertexIndices;
-	vector<ivec3> normalIndices;
+	thrust::host_vector<vec3> verts;
+	thrust::host_vector<vec3> norms;
+	thrust::host_vector<Material> materials;
+	thrust::host_vector<ivec3> vertexIndices;
+	thrust::host_vector<ivec3> normalIndices;
+	thrust::host_vector<int> materialIndices;
 
 	void buildTree(KDTreeBuilderNode *curr_node);
 };
