@@ -146,14 +146,16 @@ private:
 class KDTree
 {
 public:
-	KDTree(vector<vec3> verts, vector<ivec3> tris);
+	KDTree(vector<vec3> verts, vector<ivec3> vertexIndices, vector<vec3> norms, vector<ivec3> normalIndices);
 	~KDTree(void);
 
 	// Getters.
 	int getRootIndex(void) const;
 	vector<KDTreeNode> getTreeNodes(void) const;
 	vector<vec3> getMeshVerts(void) const;
-	vector<ivec3> getMeshTris(void) const;
+	vector<vec3> getMeshNorms(void) const;
+	vector<ivec3> getVertexIndices(void) const;
+	vector<ivec3> getNormalIndices(void) const;
 	std::vector<int> getTriIndexList(void) const;
 	int getNumNodes(void) const;
 
@@ -171,7 +173,9 @@ private:
 	// Input mesh variables.
 	int num_verts, num_tris;
 	vector<vec3> verts;
-	vector<ivec3> tris;
+	vector<vec3> norms;
+	vector<ivec3> vertexIndices;
+	vector<ivec3> normalIndices;
 
 	void buildTree(KDTreeBuilderNode *curr_node);
 };

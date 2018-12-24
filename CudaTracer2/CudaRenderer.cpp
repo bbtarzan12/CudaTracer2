@@ -34,7 +34,7 @@ void CudaRenderer::Init(RendererOption option)
 {
 	Renderer::Init(option);
 	GLFWManager::Init(option.width, option.height, "Cuda Tracer", this);
-	InitCuda("river_walk_1_4k.hdr");
+	InitHDRTexture("river_walk_1_4k.hdr");
 	cout << "[Renderer] CudaRenderer Init" << endl;
 
 	{
@@ -54,27 +54,31 @@ void CudaRenderer::Init(RendererOption option)
 		//spheres.push_back(Sphere(vec3(0, 0, 1140), 1000, 6));
 		//spheres.push_back(Sphere(vec3(0, 0, -1140), 1000, 5));
 
-		Mesh* mesh1 = new Mesh(vec3(50, 50, 50), "test.obj", 4);
-		Mesh* mesh2 = new Mesh(vec3(0), "test1.obj", 4);
-		Mesh* mesh3 = new Mesh(vec3(0), "test2.obj", 4);
-
-		meshes.push_back(mesh1);
-		meshes.push_back(mesh2);
-		meshes.push_back(mesh3);
+		meshes.emplace_back(vec3(0), "test.obj", 4);
+		meshes.emplace_back(vec3(0), "test1.obj", 4);
+		meshes.emplace_back(vec3(0), "test2.obj", 4);
+		meshes.emplace_back(vec3(0, 5, 0), "test3.obj", 4);
 
 		vector<vec3> verts;
-		vector<ivec3> tris;
+		vector<vec3> norms;
+		vector<ivec3> vertexIndices;
+		vector<ivec3> normalIndices;
 
 		for (auto & mesh : meshes)
 		{
 			int numVerts = verts.size();
-			verts.reserve(verts.size() + mesh->verts.size());
-			tris.reserve(tris.size() + mesh->tris.size());
-			verts.insert(verts.end(), mesh->verts.begin(), mesh->verts.end());
-			transform(mesh->tris.begin(), mesh->tris.end(), back_inserter(tris), [&](const ivec3& t) { return t + numVerts;; });
+			int numNorms = norms.size();
+			verts.reserve(verts.size() + mesh.verts.size());
+			norms.reserve(norms.size() + mesh.norms.size());
+			vertexIndices.reserve(vertexIndices.size() + mesh.vertexIndices.size());
+			normalIndices.reserve(normalIndices.size() + mesh.normalIndices.size());
+			
+			verts.insert(verts.end(), mesh.verts.begin(), mesh.verts.end());
+			norms.insert(norms.end(), mesh.norms.begin(), mesh.norms.end());
+			transform(mesh.vertexIndices.begin(), mesh.vertexIndices.end(), back_inserter(vertexIndices), [&](const ivec3& t) { return t + ivec3(numVerts); });
+			transform(mesh.normalIndices.begin(), mesh.normalIndices.end(), back_inserter(normalIndices), [&](const ivec3& t) { return t + ivec3(numNorms); });
 		}
-
-		tree = new KDTree(verts, tris);
+		tree = new KDTree(verts, vertexIndices, norms, normalIndices);
 	}
 
 	{
@@ -199,7 +203,7 @@ void CudaRenderer::Render(float deltaTime)
 					camera->ResetDirty();
 				}
 
-				RenderKernel(camera, spheres, meshes, tree, materials, currentOption);
+				RenderKernel(camera, spheres, tree, materials, currentOption);
 			}
 			gpuErrorCheck(cudaDestroySurfaceObject(viewCudaSurfaceObject));
 			gpuErrorCheck(cudaGraphicsUnmapResources(1, &viewResource));
@@ -299,7 +303,7 @@ void CudaRenderer::Render(float deltaTime)
 				currentOption.surf = viewCudaSurfaceObject;
 				currentOption.frame = 1;
 				currentOption.isAccumulate = false;
-				RenderKernel(camera, spheres, meshes, tree, materials, currentOption);
+				RenderKernel(camera, spheres, tree, materials, currentOption);
 			}
 			gpuErrorCheck(cudaDestroySurfaceObject(viewCudaSurfaceObject));
 			gpuErrorCheck(cudaGraphicsUnmapResources(1, &viewResource));

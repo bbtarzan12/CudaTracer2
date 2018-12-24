@@ -956,20 +956,22 @@ void KDTreeBuilder::printNodeIdsAndBounds(KDTreeBuilderNode *curr_node)
 // Construtor/destructor.
 ////////////////////////////////////////////////////
 
-KDTree::KDTree(vector<vec3> verts, vector<ivec3> tris)
+KDTree::KDTree(vector<vec3> verts, vector<ivec3> vertexIndices, vector<vec3> norms, vector<ivec3> normalIndices)
 {
 	auto timer = MeasureTime::Timer();
 	timer.Start("[KDTree] Build Start");
-	builder = new KDTreeBuilder(verts, tris);
+	builder = new KDTreeBuilder(verts, vertexIndices);
 
 	num_nodes = builder->getNumNodes();
 	root_index = builder->getRootNode()->id;
 
-	this->tris = tris;
 	this->verts = verts;
+	this->norms = norms;
+	this->vertexIndices = vertexIndices;
+	this->normalIndices = normalIndices;
 
 	num_verts = this->verts.size();
-	num_tris = this->tris.size();
+	num_tris = this->vertexIndices.size();
 
 	// Allocate memory for all nodes in GPU kd-tree.
 	tree_nodes = vector<KDTreeNode>(num_nodes);
@@ -1005,9 +1007,19 @@ vector<vec3> KDTree::getMeshVerts() const
 	return verts;
 }
 
-vector<ivec3> KDTree::getMeshTris() const
+std::vector<glm::vec3> KDTree::getMeshNorms(void) const
 {
-	return tris;
+	return norms;
+}
+
+vector<ivec3> KDTree::getVertexIndices() const
+{
+	return vertexIndices;
+}
+
+std::vector<glm::ivec3> KDTree::getNormalIndices(void) const
+{
+	return normalIndices;
 }
 
 std::vector<int> KDTree::getTriIndexList() const

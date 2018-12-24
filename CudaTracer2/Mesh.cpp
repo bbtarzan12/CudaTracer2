@@ -17,8 +17,6 @@ Mesh::Mesh(vec3 position /*= vec3(0)*/, string fileName /*= ""*/, int materialID
 	auto timer = MeasureTime::Timer();
 	timer.Start("[Mesh] Load Start");
 	
-	this->position = position;
-
 	tinyobj::attrib_t attrib;
 	vector<tinyobj::shape_t> shapes;
 	vector<tinyobj::material_t> materials;
@@ -45,7 +43,7 @@ Mesh::Mesh(vec3 position /*= vec3(0)*/, string fileName /*= ""*/, int materialID
 
 	for (size_t v = 0; v < attrib.vertices.size() / 3; v++)
 	{
-		verts.emplace_back(attrib.vertices[3 * v + 0], attrib.vertices[3 * v + 1], attrib.vertices[3 * v + 2]);
+		verts.emplace_back(attrib.vertices[3 * v + 0] + position.x, attrib.vertices[3 * v + 1] + position.y, attrib.vertices[3 * v + 2] + position.z);
 	}
 
 	for (size_t v = 0; v < attrib.normals.size() / 3; v++)
@@ -64,13 +62,12 @@ Mesh::Mesh(vec3 position /*= vec3(0)*/, string fileName /*= ""*/, int materialID
 
 		for (auto & triangle : shape.mesh.num_face_vertices)
 		{
-			// For each vertex in the face
-
 			tinyobj::index_t idx = shape.mesh.indices[index_offset];
 			tinyobj::index_t idy = shape.mesh.indices[index_offset + 1];
 			tinyobj::index_t idz = shape.mesh.indices[index_offset + 2];
 
-			tris.emplace_back(idx.vertex_index, idy.vertex_index, idz.vertex_index);
+			vertexIndices.emplace_back(idx.vertex_index, idy.vertex_index, idz.vertex_index);
+			normalIndices.emplace_back(idx.normal_index, idy.normal_index, idz.normal_index);
 			index_offset += 3;
 		}
 	}

@@ -144,6 +144,18 @@ struct KernelOption
 	bool enableDof;
 	int maxSamples;
 	int hdrHeight, hdrWidth;
+
+	KernelArray<Sphere> spheres;
+	KernelArray<Material> materials;
+	
+	ivec3* vertexIndices;
+	ivec3* normalIndices;
+	vec3* verts;
+	vec3* norms;
+	int kdTreeRootIndex;
+	KDTreeNode* kdTreeNodes;
+	int* kdTreeTriIndices;
+	cudaSurfaceObject_t surface;
 };
 
 struct RenderOption
@@ -156,8 +168,8 @@ struct RenderOption
 	cudaSurfaceObject_t surf;
 };
 
-void InitCuda(const char* hdrFileName);
+void InitHDRTexture(const char* hdrFileName);
 
-void RenderKernel(const shared_ptr<Camera>& camera, const thrust::host_vector<Sphere>& spheres, const std::vector<Mesh*> meshes, const KDTree* tree, const thrust::host_vector<Material>& materials, const RenderOption& option);
+void RenderKernel(const shared_ptr<Camera>& camera, const thrust::host_vector<Sphere>& spheres, const KDTree* tree, const thrust::host_vector<Material>& materials, const RenderOption& option);
 
 #endif

@@ -19,28 +19,28 @@ __host__ __device__ unsigned int WangHash(unsigned int a)
 	return a;
 }
 
-__device__ glm::vec3 gpuComputeTriNormal(const glm::vec3 &p1, const glm::vec3 &p2, const glm::vec3 &p3)
+//__device__ vec3 gpuComputeTriNormal(const vec3 &p1, const vec3 &p2, const vec3 &p3)
+//{
+//	vec3 u = p2 - p1;
+//	vec3 v = p3 - p1;
+//
+//	float nx = u.y * v.z - u.z * v.y;
+//	float ny = u.z * v.x - u.x * v.z;
+//	float nz = u.x * v.y - u.y * v.x;
+//
+//	return normalize(vec3(nx, ny, nz));
+//}
+
+__device__ bool gpuTriIntersect(Ray ray, vec3 v0, vec3 v1, vec3 v2, vec3 n0, vec3 n1, vec3 n2, float &t, vec3 &normal)
 {
-	glm::vec3 u = p2 - p1;
-	glm::vec3 v = p3 - p1;
-
-	float nx = u.y * v.z - u.z * v.y;
-	float ny = u.z * v.x - u.x * v.z;
-	float nz = u.x * v.y - u.y * v.x;
-
-	return glm::normalize(glm::vec3(nx, ny, nz));
-}
-
-__device__ bool gpuTriIntersect(Ray ray, glm::vec3 v0, glm::vec3 v1, glm::vec3 v2, float &t, glm::vec3 &normal)
-{
-	glm::vec3 e1, e2, h, s, q;
+	vec3 e1, e2, h, s, q;
 	float a, f, u, v;
 
 	e1 = v1 - v0;
 	e2 = v2 - v0;
 
-	h = glm::cross(ray.direction, e2);
-	a = glm::dot(e1, h);
+	h = cross(ray.direction, e2);
+	a = dot(e1, h);
 
 	if (a > -0.00001f && a < 0.00001f)
 	{
@@ -49,15 +49,15 @@ __device__ bool gpuTriIntersect(Ray ray, glm::vec3 v0, glm::vec3 v1, glm::vec3 v
 
 	f = 1.0f / a;
 	s = ray.origin - v0;
-	u = f * glm::dot(s, h);
+	u = f * dot(s, h);
 
 	if (u < 0.0f || u > 1.0f)
 	{
 		return false;
 	}
 
-	q = glm::cross(s, e1);
-	v = f * glm::dot(ray.direction, q);
+	q = cross(s, e1);
+	v = f * dot(ray.direction, q);
 
 	if (v < 0.0f || u + v > 1.0f)
 	{
@@ -65,11 +65,11 @@ __device__ bool gpuTriIntersect(Ray ray, glm::vec3 v0, glm::vec3 v1, glm::vec3 v
 	}
 
 	// at this stage we can compute t to find out where the intersection point is on the line
-	t = f * glm::dot(e2, q);
+	t = f * dot(e2, q);
 
 	if (t > EPSILON)
 	{ // ray intersection
-		normal = gpuComputeTriNormal(v0, v1, v2);
+		normal = normalize((1 - u - v) * n0 + u * n1 + v * n2);
 		return true;
 	}
 	else
@@ -78,7 +78,7 @@ __device__ bool gpuTriIntersect(Ray ray, glm::vec3 v0, glm::vec3 v1, glm::vec3 v
 	}
 }
 
-__device__ bool gpuIsPointToLeftOfSplittingPlane(KDTreeNode node, const glm::vec3 &p)
+__device__ bool gpuIsPointToLeftOfSplittingPlane(KDTreeNode node, const vec3 &p)
 {
 	if (node.split_plane_axis == X_AXIS)
 	{
@@ -99,7 +99,7 @@ __device__ bool gpuIsPointToLeftOfSplittingPlane(KDTreeNode node, const glm::vec
 	}
 }
 
-__device__ int gpuGetNeighboringNodeIndex(KDTreeNode node, glm::vec3 p)
+__device__ int gpuGetNeighboringNodeIndex(KDTreeNode node, vec3 p)
 {
 
 	const float fabsEpsilon = 0.000005;
@@ -143,7 +143,7 @@ __device__ int gpuGetNeighboringNodeIndex(KDTreeNode node, glm::vec3 p)
 
 __device__ bool gpuAABBIntersect(boundingBox bbox, Ray ray, float &t_near, float &t_far)
 {
-	glm::vec3 dirfrac(1.0f / ray.direction.x, 1.0f / ray.direction.y, 1.0f / ray.direction.z);
+	vec3 dirfrac(1.0f / ray.direction.x, 1.0f / ray.direction.y, 1.0f / ray.direction.z);
 
 	float t1 = (bbox.min.x - ray.origin.x) * dirfrac.x;
 	float t2 = (bbox.max.x - ray.origin.x) * dirfrac.x;
@@ -170,44 +170,9 @@ __device__ bool gpuAABBIntersect(boundingBox bbox, Ray ray, float &t_near, float
 	t_near = tmin;
 	t_far = tmax;
 	return true;
-
-	//vec3 minBox = bbox.min;
-	//vec3 maxBox = bbox.max;
-
-	//if (ray.direction.x < 0)
-	//{
-	//	ray.origin.x = minBox.x + maxBox.x - ray.origin.x;
-	//	ray.direction.x = -ray.direction.x;
-	//}
-	//if (ray.direction.y < 0)
-	//{
-	//	ray.origin.y = minBox.y + maxBox.y - ray.origin.y;
-	//	ray.direction.y = -ray.direction.y;
-	//}
-	//if (ray.direction.z < 0)
-	//{
-	//	ray.origin.z = minBox.z + maxBox.z - ray.origin.z;
-	//	ray.direction.z = -ray.direction.z;
-	//}
-
-	//vec3 div = 1.0f / ray.direction;
-	//vec3 tMin = (minBox - ray.origin) * div;
-	//vec3 tMax = (maxBox - ray.origin) * div;
-
-	//float tmin = max(max(tMin.x, tMin.y), tMin.z);
-	//float tmax = min(min(tMax.x, tMax.y), tMax.z);
-
-	//if (tmin <= tmax)
-	//{
-	//	t_near = tmin;
-	//	t_far = tmax;
-	//	return true;
-	//}
-	//else
-	//	return false;
 }
 
-__device__ ObjectIntersection StacklessIntersect(Ray ray, int root_index, KDTreeNode *tree_nodes, int *kd_tri_index_list, glm::ivec3 *tris, glm::vec3 *verts)
+__device__ ObjectIntersection StacklessIntersect(Ray ray, int root_index, KDTreeNode *tree_nodes, int *kd_tri_index_list, ivec3 *vertexIndices, ivec3* normalIndices, vec3 *verts, vec3* norms)
 {
 	KDTreeNode curr_node = tree_nodes[root_index];
 	ObjectIntersection intersection = ObjectIntersection();
@@ -228,7 +193,7 @@ __device__ ObjectIntersection StacklessIntersect(Ray ray, int root_index, KDTree
 		t_entry_prev = t_entry;
 
 		// Down traversal - Working our way down to a leaf node.
-		glm::vec3 p_entry = ray.origin + (t_entry * ray.direction);
+		vec3 p_entry = ray.origin + (t_entry * ray.direction);
 		while (!curr_node.is_leaf_node)
 		{
 			curr_node = gpuIsPointToLeftOfSplittingPlane(curr_node, p_entry) ? tree_nodes[curr_node.left_child_index] : tree_nodes[curr_node.right_child_index];
@@ -238,15 +203,19 @@ __device__ ObjectIntersection StacklessIntersect(Ray ray, int root_index, KDTree
 		// Check intersection with triangles contained in current leaf node.
 		for (int i = curr_node.first_tri_index; i < (curr_node.first_tri_index + curr_node.num_tris); ++i)
 		{
-			glm::ivec3 tri = tris[kd_tri_index_list[i]];
-			glm::vec3 v0 = verts[tri.x];
-			glm::vec3 v1 = verts[tri.y];
-			glm::vec3 v2 = verts[tri.z];
+			ivec3 tri = vertexIndices[kd_tri_index_list[i]];
+			ivec3 norm = normalIndices[kd_tri_index_list[i]];
+			vec3 v0 = verts[tri.x];
+			vec3 v1 = verts[tri.y];
+			vec3 v2 = verts[tri.z];
+			vec3 n0 = norms[norm.x];
+			vec3 n1 = norms[norm.y];
+			vec3 n2 = norms[norm.z];
 
 			// Perform ray/triangle intersection test.
 			float tmp_t = INF;
-			glm::vec3 tmp_normal(0.0f, 0.0f, 0.0f);
-			bool intersects_tri = gpuTriIntersect(ray, v0, v1, v2, tmp_t, tmp_normal);
+			vec3 tmp_normal(0.0f, 0.0f, 0.0f);
+			bool intersects_tri = gpuTriIntersect(ray, v0, v1, v2, n0, n1, n2, tmp_t, tmp_normal);
 
 			if (intersects_tri)
 			{
@@ -255,6 +224,7 @@ __device__ ObjectIntersection StacklessIntersect(Ray ray, int root_index, KDTree
 					intersection.hit = true;
 					t_exit = tmp_t;
 					intersection.normal = tmp_normal;
+					intersection.materialID = 2;
 				}
 			}
 		}
@@ -275,7 +245,7 @@ __device__ ObjectIntersection StacklessIntersect(Ray ray, int root_index, KDTree
 		}
 
 		// Get neighboring node using ropes attached to current node.
-		glm::vec3 p_exit = ray.origin + (t_entry * ray.direction);
+		vec3 p_exit = ray.origin + (t_entry * ray.direction);
 		int new_node_index = gpuGetNeighboringNodeIndex(curr_node, p_exit);
 
 		// Break if neighboring node not found, meaning we've exited the kd-tree.
@@ -290,7 +260,7 @@ __device__ ObjectIntersection StacklessIntersect(Ray ray, int root_index, KDTree
 	return intersection;
 }
 
-__device__ ObjectIntersection Intersect(Ray ray, KernelArray<Sphere> spheres, glm::ivec3 *mesh_tris, glm::vec3 *mesh_verts, int kd_tree_root_index, KDTreeNode *kd_tree_nodes, int *kd_tree_tri_indices)
+__device__ ObjectIntersection Intersect(Ray ray, KernelArray<Sphere> spheres, ivec3 *vertexIndices, ivec3* normalIndices, vec3 *verts, vec3* norms, int kd_tree_root_index, KDTreeNode *kd_tree_nodes, int *kd_tree_tri_indices)
 {
 	ObjectIntersection intersection = ObjectIntersection();
 	ObjectIntersection temp = ObjectIntersection();
@@ -310,7 +280,7 @@ __device__ ObjectIntersection Intersect(Ray ray, KernelArray<Sphere> spheres, gl
 		}
 	}
 
-	ObjectIntersection meshIntersect = StacklessIntersect(ray, kd_tree_root_index, kd_tree_nodes, kd_tree_tri_indices, mesh_tris, mesh_verts);
+	ObjectIntersection meshIntersect = StacklessIntersect(ray, kd_tree_root_index, kd_tree_nodes, kd_tree_tri_indices, vertexIndices, normalIndices, verts, norms);
 
 	if (meshIntersect.hit && meshIntersect.t < intersection.t)
 	{
@@ -320,7 +290,7 @@ __device__ ObjectIntersection Intersect(Ray ray, KernelArray<Sphere> spheres, gl
 	return intersection;
 }
 
-__device__ Ray GetReflectedRay(Ray ray, vec3 hitPoint, glm::vec3 normal, vec3 &mask, Material material, curandState* randState)
+__device__ Ray GetReflectedRay(Ray ray, vec3 hitPoint, vec3 normal, vec3 &mask, Material material, curandState* randState)
 {
 	switch (material.type)
 	{
@@ -413,14 +383,14 @@ __device__ Ray GetReflectedRay(Ray ray, vec3 hitPoint, glm::vec3 normal, vec3 &m
 	}
 }
 
-__device__ vec3 TraceRay(Ray ray, KernelArray<Sphere> spheres, KernelArray<Material> materials, glm::ivec3 *mesh_tris, glm::vec3 *mesh_verts, int kd_tree_root_index, KDTreeNode *kd_tree_nodes, int *kd_tree_tri_indices, KernelOption option, curandState* randState)
+__device__ vec3 TraceRay(Ray ray, KernelOption option, curandState* randState)
 {
 	vec3 resultColor = vec3(0);
 	vec3 mask = vec3(1);
 
 	for (int depth = 0; depth < 100; depth++)
 	{
-		ObjectIntersection intersection = Intersect(ray, spheres, mesh_tris, mesh_verts, kd_tree_root_index, kd_tree_nodes, kd_tree_tri_indices);
+		ObjectIntersection intersection = Intersect(ray, option.spheres, option.vertexIndices, option.normalIndices, option.verts, option.norms, option.kdTreeRootIndex, option.kdTreeNodes, option.kdTreeTriIndices);
 
 		if (!intersection.hit)
 		{
@@ -443,7 +413,7 @@ __device__ vec3 TraceRay(Ray ray, KernelArray<Sphere> spheres, KernelArray<Mater
 		}
 
 		vec3 hitPoint = ray.origin + ray.direction * intersection.t;
-		Material hitMaterial = materials.array[intersection.materialID];
+		Material hitMaterial = option.materials.array[intersection.materialID];
 		vec3 emission = hitMaterial.emission;
 
 		float maxReflection = max(max(mask.r, mask.g), mask.b);
@@ -462,11 +432,11 @@ __device__ Ray GetRay(Camera* camera, int x, int y, bool enableDof, curandState*
 	float jitterValueX = curand_uniform(randState) - 0.5f;
 	float jitterValueY = curand_uniform(randState) - 0.5f;
 
-	vec3 wDir = glm::normalize(-camera->forward);
-	vec3 uDir = glm::normalize(cross(camera->up, wDir));
-	vec3 vDir = glm::cross(wDir, -uDir);
+	vec3 wDir = normalize(-camera->forward);
+	vec3 uDir = normalize(cross(camera->up, wDir));
+	vec3 vDir = cross(wDir, -uDir);
 
-	float top = tan(camera->fov * glm::pi<float>() / 360.0f);
+	float top = tan(camera->fov * pi<float>() / 360.0f);
 	float right = camera->aspectRatio * top;
 	float bottom = -top;
 	float left = -right;
@@ -504,7 +474,7 @@ __device__ Ray GetRay(Camera* camera, int x, int y, bool enableDof, curandState*
 	}
 }
 
-__global__ void PathAccumulateKernel(Camera* camera, KernelArray<Sphere> spheres, KernelArray<Material> materials, glm::ivec3 *mesh_tris, glm::vec3 *mesh_verts, int kd_tree_root_index, KDTreeNode *kd_tree_nodes, int *kd_tree_tri_indices, KernelOption option, cudaSurfaceObject_t surface)
+__global__ void PathAccumulateKernel(Camera* camera, KernelOption option)
 {
 	int width = camera->width;
 	int height = camera->height;
@@ -516,14 +486,14 @@ __global__ void PathAccumulateKernel(Camera* camera, KernelArray<Sphere> spheres
 	if (i >= width * height) return;
 	curandState randState;
 	float4 originColor;
-	surf2Dread(&originColor, surface, x * sizeof(float4), y);
+	surf2Dread(&originColor, option.surface, x * sizeof(float4), y);
 
 	vec3 resultColor = vec3(0, 0, 0);
 	curand_init(WangHash(threadId) + WangHash(option.frame) + WangHash(option.seed), 0, 0, &randState);
 	Ray ray = GetRay(camera, x, y, option.enableDof, &randState);
-	vec3 color = TraceRay(ray, spheres, materials, mesh_tris, mesh_verts, kd_tree_root_index, kd_tree_nodes, kd_tree_tri_indices, option, &randState);
+	vec3 color = TraceRay(ray, option, &randState);
 	resultColor = (vec3(originColor.x, originColor.y, originColor.z) * (float) (option.frame - 1) + color) / (float) option.frame;
-	surf2Dwrite(make_float4(resultColor.r, resultColor.g, resultColor.b, 1.0f), surface, x * sizeof(float4), y);
+	surf2Dwrite(make_float4(resultColor.r, resultColor.g, resultColor.b, 1.0f), option.surface, x * sizeof(float4), y);
 }
 
 __global__ void PathImageKernel(Camera* camera, KernelArray<Sphere> spheres, KernelArray<Material> materials, KernelOption option, cudaSurfaceObject_t surface)
@@ -549,7 +519,7 @@ __global__ void PathImageKernel(Camera* camera, KernelArray<Sphere> spheres, Ker
 	//surf2Dwrite(make_float4(resultColor.r, resultColor.g, resultColor.b, 1.0f), surface, x * sizeof(float4), y);
 }
 
-void InitCuda(const char* hdrFileName)
+void InitHDRTexture(const char* hdrFileName)
 {
 	FREE_IMAGE_FORMAT fif = FIF_HDR;
 	FIBITMAP *src(nullptr);
@@ -596,7 +566,7 @@ void InitCuda(const char* hdrFileName)
 	delete cpuHDRmap;
 }
 
-void RenderKernel(const shared_ptr<Camera>& camera, const thrust::host_vector<Sphere>& spheres, const std::vector<Mesh*> meshes, const KDTree* tree, const thrust::host_vector<Material>& materials, const RenderOption& option)
+void RenderKernel(const shared_ptr<Camera>& camera, const thrust::host_vector<Sphere>& spheres, const KDTree* tree, const thrust::host_vector<Material>& materials, const RenderOption& option)
 {
 	int width = camera->width;
 	int height = camera->height;
@@ -614,14 +584,24 @@ void RenderKernel(const shared_ptr<Camera>& camera, const thrust::host_vector<Sp
 	thrust::device_vector<Material> cudaMaterials(materials);
 
 	// Send mesh triangles to GPU.
-	glm::ivec3 *cuda_mesh_tris;
-	gpuErrorCheck(cudaMalloc((void**) &cuda_mesh_tris, tree->getMeshTris().size() * sizeof(glm::ivec3)));
-	gpuErrorCheck(cudaMemcpy(cuda_mesh_tris, tree->getMeshTris().data(), tree->getMeshTris().size() * sizeof(glm::ivec3), cudaMemcpyHostToDevice));
+	ivec3 *cuda_vert_indices;
+	gpuErrorCheck(cudaMalloc((void**) &cuda_vert_indices, tree->getVertexIndices().size() * sizeof(ivec3)));
+	gpuErrorCheck(cudaMemcpy(cuda_vert_indices, tree->getVertexIndices().data(), tree->getVertexIndices().size() * sizeof(ivec3), cudaMemcpyHostToDevice));
+
+	ivec3 *cuda_normal_indices;
+	gpuErrorCheck(cudaMalloc((void**)&cuda_normal_indices, tree->getNormalIndices().size() * sizeof(ivec3)));
+	gpuErrorCheck(cudaMemcpy(cuda_normal_indices, tree->getNormalIndices().data(), tree->getNormalIndices().size() * sizeof(ivec3), cudaMemcpyHostToDevice));
+
 
 	// Send mesh vertices to GPU.
-	glm::vec3 *cuda_mesh_verts;
-	gpuErrorCheck(cudaMalloc((void**) &cuda_mesh_verts, tree->getMeshVerts().size() * sizeof(glm::vec3)));
-	gpuErrorCheck(cudaMemcpy(cuda_mesh_verts, tree->getMeshVerts().data(), tree->getMeshVerts().size() * sizeof(glm::vec3), cudaMemcpyHostToDevice));
+	vec3 *cuda_mesh_verts;
+	gpuErrorCheck(cudaMalloc((void**) &cuda_mesh_verts, tree->getMeshVerts().size() * sizeof(vec3)));
+	gpuErrorCheck(cudaMemcpy(cuda_mesh_verts, tree->getMeshVerts().data(), tree->getMeshVerts().size() * sizeof(vec3), cudaMemcpyHostToDevice));
+
+	// Send mesh normals to GPU.
+	vec3 *cuda_mesh_norms;
+	gpuErrorCheck(cudaMalloc((void**)&cuda_mesh_norms, tree->getMeshNorms().size() * sizeof(vec3)));
+	gpuErrorCheck(cudaMemcpy(cuda_mesh_norms, tree->getMeshNorms().data(), tree->getMeshNorms().size() * sizeof(vec3), cudaMemcpyHostToDevice));
 
 	// Send kd-tree nodes to GPU.
 	KDTreeNode *cuda_kd_tree_nodes;
@@ -667,9 +647,19 @@ void RenderKernel(const shared_ptr<Camera>& camera, const thrust::host_vector<Sp
 			kernelOption.maxSamples = option.maxSamples;
 			kernelOption.hdrHeight = hdrHeight;
 			kernelOption.hdrWidth = hdrWidth;
+			kernelOption.spheres = ConvertToKernel(cudaSpheres);
+			kernelOption.materials = ConvertToKernel(cudaMaterials);
+			kernelOption.vertexIndices = cuda_vert_indices;
+			kernelOption.normalIndices = cuda_normal_indices;
+			kernelOption.verts = cuda_mesh_verts;
+			kernelOption.norms = cuda_mesh_norms;
+			kernelOption.kdTreeRootIndex = tree->getRootIndex();
+			kernelOption.kdTreeNodes = cuda_kd_tree_nodes;
+			kernelOption.kdTreeTriIndices = cuda_kd_tree_tri_indices;
+			kernelOption.surface = option.surf;
 			if (option.isAccumulate)
 			{
-				PathAccumulateKernel << <grid, block >> > (cudaCamera, ConvertToKernel(cudaSpheres), ConvertToKernel(cudaMaterials), cuda_mesh_tris, cuda_mesh_verts, tree->getRootIndex(), cuda_kd_tree_nodes, cuda_kd_tree_tri_indices, kernelOption, option.surf);
+				PathAccumulateKernel << <grid, block >> > (cudaCamera, kernelOption);
 			}
 			else
 			{
@@ -688,8 +678,11 @@ void RenderKernel(const shared_ptr<Camera>& camera, const thrust::host_vector<Sp
 
 	gpuErrorCheck(cudaFree(cudaCamera));
 
-	gpuErrorCheck(cudaFree(cuda_mesh_tris));
+	gpuErrorCheck(cudaFree(cuda_vert_indices));
+	gpuErrorCheck(cudaFree(cuda_normal_indices));
+
 	gpuErrorCheck(cudaFree(cuda_mesh_verts));
+	gpuErrorCheck(cudaFree(cuda_mesh_norms));
 	gpuErrorCheck(cudaFree(cuda_kd_tree_nodes));
 	gpuErrorCheck(cudaFree(cuda_kd_tree_tri_indices));
 	delete[] tri_index_array;

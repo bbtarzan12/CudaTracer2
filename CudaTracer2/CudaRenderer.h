@@ -36,7 +36,7 @@ private:
 	cudaArray* viewArray;
 
 	// Scene
-	std::vector<Mesh*> meshes;
+	std::vector<Mesh> meshes;
 	KDTree* tree;
 	thrust::host_vector<Sphere> spheres;
 	thrust::host_vector<Material> materials;
