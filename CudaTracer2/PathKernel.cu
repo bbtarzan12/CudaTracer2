@@ -19,18 +19,6 @@ __host__ __device__ unsigned int WangHash(unsigned int a)
 	return a;
 }
 
-//__device__ vec3 gpuComputeTriNormal(const vec3 &p1, const vec3 &p2, const vec3 &p3)
-//{
-//	vec3 u = p2 - p1;
-//	vec3 v = p3 - p1;
-//
-//	float nx = u.y * v.z - u.z * v.y;
-//	float ny = u.z * v.x - u.x * v.z;
-//	float nz = u.x * v.y - u.y * v.x;
-//
-//	return normalize(vec3(nx, ny, nz));
-//}
-
 __device__ bool gpuTriIntersect(Ray ray, vec3 v0, vec3 v1, vec3 v2, vec3 n0, vec3 n1, vec3 n2, float &t, vec3 &normal)
 {
 	vec3 e1, e2, h, s, q;
@@ -141,34 +129,41 @@ __device__ int gpuGetNeighboringNodeIndex(KDTreeNode node, vec3 p)
 	}
 }
 
-__device__ bool gpuAABBIntersect(boundingBox bbox, Ray ray, float &t_near, float &t_far)
+__device__ bool gpuAABBIntersect(boundingBox bbox, Ray ray, float &tmin, float &tmax)
 {
-	vec3 dirfrac(1.0f / ray.direction.x, 1.0f / ray.direction.y, 1.0f / ray.direction.z);
+	tmin = (bbox.min.x - ray.origin.x) / ray.direction.x;
+	tmax = (bbox.max.x - ray.origin.x) / ray.direction.x;
 
-	float t1 = (bbox.min.x - ray.origin.x) * dirfrac.x;
-	float t2 = (bbox.max.x - ray.origin.x) * dirfrac.x;
-	float t3 = (bbox.min.y - ray.origin.y) * dirfrac.y;
-	float t4 = (bbox.max.y - ray.origin.y) * dirfrac.y;
-	float t5 = (bbox.min.z - ray.origin.z) * dirfrac.z;
-	float t6 = (bbox.max.z - ray.origin.z) * dirfrac.z;
+	if (tmin > tmax) thrust::swap(tmin, tmax);
 
-	float tmin = max(max(min(t1, t2), min(t3, t4)), min(t5, t6));
-	float tmax = min(min(max(t1, t2), max(t3, t4)), max(t5, t6));
+	float tymin = (bbox.min.y - ray.origin.y) / ray.direction.y;
+	float tymax = (bbox.max.y - ray.origin.y) / ray.direction.y;
 
-	// If tmax < 0, ray intersects AABB, but entire AABB is behind ray, so reject.
-	if (tmax < 0.0f)
-	{
+	if (tymin > tymax) thrust::swap(tymin, tymax);
+
+	if ((tmin > tymax) || (tymin > tmax))
 		return false;
-	}
 
-	// If tmin > tmax, ray does not intersect AABB.
-	if (tmin > tmax)
-	{
+	if (tymin > tmin)
+		tmin = tymin;
+
+	if (tymax < tmax)
+		tmax = tymax;
+
+	float tzmin = (bbox.min.z - ray.origin.z) / ray.direction.z;
+	float tzmax = (bbox.max.z - ray.origin.z) / ray.direction.z;
+
+	if (tzmin > tzmax) thrust::swap(tzmin, tzmax);
+
+	if ((tmin > tzmax) || (tzmin > tmax))
 		return false;
-	}
 
-	t_near = tmin;
-	t_far = tmax;
+	if (tzmin > tmin)
+		tmin = tzmin;
+
+	if (tzmax < tmax)
+		tmax = tzmax;
+
 	return true;
 }
 
@@ -388,7 +383,7 @@ __device__ vec3 TraceRay(Ray ray, KernelOption option, curandState* randState)
 	vec3 resultColor = vec3(0);
 	vec3 mask = vec3(1);
 
-	for (int depth = 0; depth < 100; depth++)
+	for (int depth = 0; depth < 5; depth++)
 	{
 		ObjectIntersection intersection = Intersect(ray, option.spheres, option.vertexIndices, option.normalIndices, option.verts, option.norms, option.kdTreeRootIndex, option.kdTreeNodes, option.kdTreeTriIndices);
 
