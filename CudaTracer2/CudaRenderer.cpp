@@ -24,9 +24,9 @@ CudaRenderer::CudaRenderer()
 CudaRenderer::~CudaRenderer()
 {
 	cout << "[Renderer] CudaRenderer Free" << endl;
-	glDeleteProgram(programID);
-	glDeleteBuffers(1, &VBO);
-	glDeleteVertexArrays(1, &VAO);
+	glDeleteProgram(cudaViewProgramID);
+	glDeleteBuffers(1, &cudaVBO);
+	glDeleteVertexArrays(1, &cudaVAO);
 	cudaDeviceReset();
 }
 
@@ -39,49 +39,15 @@ void CudaRenderer::Init(RendererOption option)
 
 	{
 		// Scene
-
-
 		//spheres.push_back(Sphere(vec3(0, 1140, 0), 1000, 1));
 		//spheres.push_back(Sphere(vec3(0, -1140, 0), 1000, 4));
 		//spheres.push_back(Sphere(vec3(1140, 0, 0), 1000, 4));
 		//spheres.push_back(Sphere(vec3(-1140, 0, 0), 1000, 4));
 		//spheres.push_back(Sphere(vec3(0, 0, 1140), 1000, 6));
 		//spheres.push_back(Sphere(vec3(0, 0, -1140), 1000, 5));
-
-		meshes.emplace_back(vec3(0), "test.obj");
-		meshes.emplace_back(vec3(0), "test1.obj");
-		meshes.emplace_back(vec3(0), "test2.obj");
-		meshes.emplace_back(vec3(0, 5, 0), "test3.obj");
-
-		vector<vec3> verts;
-		vector<vec3> norms;
-		vector<Material> materials;
-		vector<ivec3> vertexIndices;
-		vector<ivec3> normalIndices;
-		vector<int> materialIndices;
-
-		for (auto & mesh : meshes)
-		{
-			int numVerts = verts.size();
-			int numNorms = norms.size();
-			int numMaterials = materials.size();
-
-			verts.reserve(verts.size() + mesh.verts.size());
-			norms.reserve(norms.size() + mesh.norms.size());
-			materials.reserve(materials.size() + mesh.materials.size());
-			vertexIndices.reserve(vertexIndices.size() + mesh.vertexIndices.size());
-			normalIndices.reserve(normalIndices.size() + mesh.normalIndices.size());
-			
-			verts.insert(verts.end(), mesh.verts.begin(), mesh.verts.end());
-			norms.insert(norms.end(), mesh.norms.begin(), mesh.norms.end());
-			materials.insert(materials.end(), mesh.materials.begin(), mesh.materials.end());
-
-			transform(mesh.vertexIndices.begin(), mesh.vertexIndices.end(), back_inserter(vertexIndices), [&](const ivec3& t) { return t + ivec3(numVerts); });
-			transform(mesh.normalIndices.begin(), mesh.normalIndices.end(), back_inserter(normalIndices), [&](const ivec3& t) { return t + ivec3(numNorms); });
-			transform(mesh.materialIndices.begin(), mesh.materialIndices.end(), back_inserter(materialIndices), [&](const int& t) { return t + numMaterials; });
-
-		}
-		tree = new KDTree(verts, vertexIndices, norms, normalIndices, materials, materialIndices);
+		
+		// Gen Opengl Buffers and Shaders
+		//LoadObj("test3.obj");
 	}
 
 	{
@@ -99,7 +65,7 @@ void CudaRenderer::Init(RendererOption option)
 		gpuErrorCheck(cudaGraphicsGLRegisterImage(&viewResource, viewGLTexture, GL_TEXTURE_2D, cudaGraphicsRegisterFlagsWriteDiscard));
 		glBindTexture(GL_TEXTURE_2D, 0);
 
-		programID = LoadShaders("vertShader.vert", "fragShader.frag");
+		cudaViewProgramID = LoadShaders("cudaView.vert", "cudaView.frag");
 
 		GLfloat vertices[] =
 		{
@@ -110,11 +76,11 @@ void CudaRenderer::Init(RendererOption option)
 			1.0f, -1.0f, 0.0f,  0.0f, 0.0f, -1.0f,  1.0f, 1.0f,
 		};
 
-		glGenVertexArrays(1, &VAO);
-		glGenBuffers(1, &VBO);
+		glGenVertexArrays(1, &cudaVAO);
+		glGenBuffers(1, &cudaVBO);
 
-		glBindVertexArray(VAO);
-		glBindBuffer(GL_ARRAY_BUFFER, VBO);
+		glBindVertexArray(cudaVAO);
+		glBindBuffer(GL_ARRAY_BUFFER, cudaVBO);
 		glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), &vertices, GL_STATIC_DRAW);
 		glEnableVertexAttribArray(0);
 		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*) 0);
@@ -122,6 +88,7 @@ void CudaRenderer::Init(RendererOption option)
 		glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*) (3 * sizeof(float)));
 		glEnableVertexAttribArray(2);
 		glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*) (6 * sizeof(float)));
+		glBindVertexArray(0);
 	}
 
 	{
@@ -184,6 +151,7 @@ void CudaRenderer::Render(float deltaTime)
 	switch (viewType)
 	{
 		case ViewType::OPENGL:
+
 			break;
 		case ViewType::ACCU:
 			gpuErrorCheck(cudaGraphicsMapResources(1, &viewResource));
@@ -215,9 +183,9 @@ void CudaRenderer::Render(float deltaTime)
 			glActiveTexture(GL_TEXTURE0);
 			glBindTexture(GL_TEXTURE_2D, viewGLTexture);
 
-			glUseProgram(programID);
+			glUseProgram(cudaViewProgramID);
 
-			glBindVertexArray(VAO);
+			glBindVertexArray(cudaVAO);
 			glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 			glBindVertexArray(0);
 			currentOption.frame++;
@@ -226,8 +194,8 @@ void CudaRenderer::Render(float deltaTime)
 		{
 			glActiveTexture(GL_TEXTURE0);
 			glBindTexture(GL_TEXTURE_2D, viewGLTexture);
-			glUseProgram(programID);
-			glBindVertexArray(VAO);
+			glUseProgram(cudaViewProgramID);
+			glBindVertexArray(cudaVAO);
 			glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 			glBindVertexArray(0);
 		}
@@ -256,7 +224,7 @@ void CudaRenderer::Render(float deltaTime)
 			{
 				glfwSetWindowShouldClose(GLFWManager::GetWindow(), GLFW_TRUE);
 			}
-			if (ImGui::MenuItem("Import Obj")) {}
+			if (ImGui::MenuItem("Import Obj")) { uiObjLoadDialog = true; }
 			ImGui::EndMenu();
 		}
 		ImGui::Separator();
@@ -325,10 +293,11 @@ void CudaRenderer::Render(float deltaTime)
 
 	if (uiFileSaveDialog)
 	{
-		if (ImGuiFileDialog::Instance()->FileDialog("Save", ".png", ".", "result.png"))
+		if (ImGuiFileDialog::Instance()->FileDialog("save", ".png", ".", "result.png"))
 		{
 			if (ImGuiFileDialog::Instance()->IsOk)
 			{
+
 				GLubyte *pixels = new GLubyte[3 * width*height];
 				glPixelStorei(GL_PACK_ALIGNMENT, 1);
 				glReadPixels(0, 0, width, height, GL_RGB, GL_UNSIGNED_BYTE, pixels);
@@ -358,12 +327,62 @@ void CudaRenderer::Render(float deltaTime)
 		}
 	}
 
+	if (uiObjLoadDialog)
+	{
+		if (ImGuiFileDialog::Instance()->FileDialog("Load", ".obj", ".", ""))
+		{
+			if (ImGuiFileDialog::Instance()->IsOk)
+			{
+				LoadObj(ImGuiFileDialog::Instance()->GetFilepathName().c_str());
+			}
+			uiObjLoadDialog = false;
+		}
+	}
+
 	ImGui::Render();
 	ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
 
 	glfwMakeContextCurrent(GLFWManager::GetWindow());
 	glfwSwapBuffers(GLFWManager::GetWindow());
+}
+
+void CudaRenderer::LoadObj(const char* fileName)
+{
+	meshes.emplace_back(vec3(0), fileName);
+
+	vector<vec3> verts;
+	vector<vec3> norms;
+	vector<Material> materials;
+	vector<ivec3> vertexIndices;
+	vector<ivec3> normalIndices;
+	vector<int> materialIndices;
+
+	for (auto & mesh : meshes)
+	{
+		int numVerts = verts.size();
+		int numNorms = norms.size();
+		int numMaterials = materials.size();
+
+		verts.reserve(verts.size() + mesh.verts.size());
+		norms.reserve(norms.size() + mesh.norms.size());
+		materials.reserve(materials.size() + mesh.materials.size());
+		vertexIndices.reserve(vertexIndices.size() + mesh.vertexIndices.size());
+		normalIndices.reserve(normalIndices.size() + mesh.normalIndices.size());
+
+		verts.insert(verts.end(), mesh.verts.begin(), mesh.verts.end());
+		norms.insert(norms.end(), mesh.norms.begin(), mesh.norms.end());
+		materials.insert(materials.end(), mesh.materials.begin(), mesh.materials.end());
+
+		transform(mesh.vertexIndices.begin(), mesh.vertexIndices.end(), back_inserter(vertexIndices), [&](const ivec3& t) { return t + ivec3(numVerts); });
+		transform(mesh.normalIndices.begin(), mesh.normalIndices.end(), back_inserter(normalIndices), [&](const ivec3& t) { return t + ivec3(numNorms); });
+		transform(mesh.materialIndices.begin(), mesh.materialIndices.end(), back_inserter(materialIndices), [&](const int& t) { return t + numMaterials; });
+
+	}
+	if (tree)
+		delete tree;
+	tree = new KDTree(verts, vertexIndices, norms, normalIndices, materials, materialIndices);
+	camera->dirty = true;
 }
 
 void CudaRenderer::HandleKeyboard(int key, int scancode, int action, int mods)

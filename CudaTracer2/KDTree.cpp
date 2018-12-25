@@ -39,19 +39,7 @@ KDTreeBuilderNode::KDTreeBuilderNode()
 
 KDTreeBuilderNode::~KDTreeBuilderNode()
 {
-	if (num_tris > 0)
-	{
-		delete[] tri_indices;
-	}
 
-	if (left)
-	{
-		delete left;
-	}
-	if (right)
-	{
-		delete right;
-	}
 }
 
 bool KDTreeBuilderNode::isPointToLeftOfSplittingPlane(const glm::vec3 &p) const
@@ -76,7 +64,7 @@ bool KDTreeBuilderNode::isPointToLeftOfSplittingPlane(const glm::vec3 &p) const
 	}
 }
 
-KDTreeBuilderNode* KDTreeBuilderNode::getNeighboringNode(glm::vec3 p)
+shared_ptr<KDTreeBuilderNode> KDTreeBuilderNode::getNeighboringNode(glm::vec3 p)
 {
 	// Check left face.
 	if (fabs(p.x - bbox.min.x) < KD_TREE_EPSILON)
@@ -341,7 +329,7 @@ KDTreeBuilder::KDTreeBuilder(thrust::host_vector<vec3> verts, thrust::host_vecto
 	this->tris = tris;
 
 	// Create list of triangle indices for first level of kd-tree.
-	int *tri_indices = new int[tris.size()];
+	vector<int> tri_indices = vector<int>(tris.size());
 	for (int i = 0; i < tris.size(); ++i)
 	{
 		tri_indices[i] = i;
@@ -354,20 +342,18 @@ KDTreeBuilder::KDTreeBuilder(thrust::host_vector<vec3> verts, thrust::host_vecto
 	// Build kd-tree and set root node.
 	root = constructTreeMedianSpaceSplit(tris.size(), tri_indices, bbox, 1);
 
-	delete[] tri_indices;
-
 	buildRopeStructure();
 }
 
 KDTreeBuilder::~KDTreeBuilder()
 {
-	delete root;
+
 }
 
 
 void KDTreeBuilder::buildRopeStructure()
 {
-	KDTreeBuilderNode* ropes[6] = { nullptr };
+	shared_ptr<KDTreeBuilderNode> ropes[6] = { nullptr };
 	buildRopeStructure(root, ropes, true);
 }
 
@@ -376,7 +362,7 @@ void KDTreeBuilder::buildRopeStructure()
 // Getters.
 ////////////////////////////////////////////////////
 
-KDTreeBuilderNode* KDTreeBuilder::getRootNode() const
+shared_ptr<KDTreeBuilderNode> KDTreeBuilder::getRootNode() const
 {
 	return root;
 }
@@ -536,10 +522,10 @@ boundingBox KDTreeBuilder::computeTightFittingBoundingBox(int num_tris, int *tri
 ////////////////////////////////////////////////////
 // constructTreeMedianSpaceSplit().
 ////////////////////////////////////////////////////
-KDTreeBuilderNode* KDTreeBuilder::constructTreeMedianSpaceSplit(int num_tris, int *tri_indices, boundingBox bounds, int curr_depth)
+shared_ptr<KDTreeBuilderNode> KDTreeBuilder::constructTreeMedianSpaceSplit(int num_tris, vector<int> tri_indices, boundingBox bounds, int curr_depth)
 {
 	// Create new node.
-	KDTreeBuilderNode *node = new KDTreeBuilderNode();
+	shared_ptr<KDTreeBuilderNode> node = make_shared<KDTreeBuilderNode>();
 	node->num_tris = num_tris;
 	node->tri_indices = tri_indices;
 	node->bbox = bounds;
@@ -594,8 +580,8 @@ KDTreeBuilderNode* KDTreeBuilder::constructTreeMedianSpaceSplit(int num_tris, in
 	node->split_plane_value = median_val;
 
 	// Allocate and initialize memory for temporary buffers to hold triangle indices for left and right subtrees.
-	int *temp_left_tri_indices = new int[num_tris];
-	int *temp_right_tri_indices = new int[num_tris];
+	vector<int> temp_left_tri_indices = vector<int>(num_tris);
+	vector<int> temp_right_tri_indices = vector<int>(num_tris);
 
 	// Populate temporary buffers.
 	int left_tri_count = 0, right_tri_count = 0;
@@ -643,8 +629,8 @@ KDTreeBuilderNode* KDTreeBuilder::constructTreeMedianSpaceSplit(int num_tris, in
 	}
 
 	// Allocate memory for lists of triangle indices for left and right subtrees.
-	int *left_tri_indices = new int[left_tri_count];
-	int *right_tri_indices = new int[right_tri_count];
+	vector<int> left_tri_indices = vector<int>(left_tri_count);
+	vector<int> right_tri_indices = vector<int>(right_tri_count);
 
 	// Populate lists of triangle indices.
 	int left_index = 0, right_index = 0;
@@ -662,10 +648,6 @@ KDTreeBuilderNode* KDTreeBuilder::constructTreeMedianSpaceSplit(int num_tris, in
 		}
 	}
 
-	// Free temporary triangle indices buffers.
-	delete[] temp_left_tri_indices;
-	delete[] temp_right_tri_indices;
-
 	// Recurse.
 	node->left = constructTreeMedianSpaceSplit(left_tri_count, left_tri_indices, left_bbox, curr_depth + 1);
 	node->right = constructTreeMedianSpaceSplit(right_tri_count, right_tri_indices, right_bbox, curr_depth + 1);
@@ -681,7 +663,7 @@ KDTreeBuilderNode* KDTreeBuilder::constructTreeMedianSpaceSplit(int num_tris, in
 // Connect kd-tree nodes with ropes.
 // Tree construction post-process.
 ////////////////////////////////////////////////////
-void KDTreeBuilder::buildRopeStructure(KDTreeBuilderNode *curr_node, KDTreeBuilderNode *ropes[], bool is_single_ray_case)
+void KDTreeBuilder::buildRopeStructure(shared_ptr<KDTreeBuilderNode> curr_node, shared_ptr<KDTreeBuilderNode> ropes[], bool is_single_ray_case)
 {
 	// Base case.
 	if (curr_node->is_leaf_node)
@@ -719,8 +701,8 @@ void KDTreeBuilder::buildRopeStructure(KDTreeBuilderNode *curr_node, KDTreeBuild
 			SR = FRONT;
 		}
 
-		KDTreeBuilderNode* RS_left[6];
-		KDTreeBuilderNode* RS_right[6];
+		shared_ptr<KDTreeBuilderNode> RS_left[6];
+		shared_ptr<KDTreeBuilderNode> RS_right[6];
 		for (int i = 0; i < 6; ++i)
 		{
 			RS_left[i] = ropes[i];
@@ -741,12 +723,12 @@ void KDTreeBuilder::buildRopeStructure(KDTreeBuilderNode *curr_node, KDTreeBuild
 ////////////////////////////////////////////////////
 // Optimization step called in certain cases when constructing stackless kd-tree rope structure.
 ////////////////////////////////////////////////////
-void KDTreeBuilder::optimizeRopes(KDTreeBuilderNode *ropes[], boundingBox bbox)
+void KDTreeBuilder::optimizeRopes(shared_ptr<KDTreeBuilderNode> ropes[], boundingBox bbox)
 {
 	// Loop through ropes of all faces of node bounding box.
 	for (int i = 0; i < 6; ++i)
 	{
-		KDTreeBuilderNode *rope_node = ropes[i];
+		shared_ptr<KDTreeBuilderNode> rope_node = ropes[i];
 
 		if (rope_node == nullptr)
 		{
@@ -916,42 +898,6 @@ void KDTreeBuilder::optimizeRopes(KDTreeBuilderNode *ropes[], boundingBox bbox)
 	}
 }
 
-
-////////////////////////////////////////////////////
-// Debug methods.
-////////////////////////////////////////////////////
-
-void KDTreeBuilder::printNumTrianglesInEachNode(KDTreeBuilderNode *curr_node, int curr_depth)
-{
-	std::cout << "Level: " << curr_depth << ", Triangles: " << curr_node->num_tris << std::endl;
-
-	if (curr_node->left)
-	{
-		printNumTrianglesInEachNode(curr_node->left, curr_depth + 1);
-	}
-	if (curr_node->right)
-	{
-		printNumTrianglesInEachNode(curr_node->right, curr_depth + 1);
-	}
-}
-
-void KDTreeBuilder::printNodeIdsAndBounds(KDTreeBuilderNode *curr_node)
-{
-	std::cout << "Node ID: " << curr_node->id << std::endl;
-	std::cout << "Node bbox min: ( " << curr_node->bbox.min.x << ", " << curr_node->bbox.min.y << ", " << curr_node->bbox.min.z << " )" << std::endl;
-	std::cout << "Node bbox max: ( " << curr_node->bbox.max.x << ", " << curr_node->bbox.max.y << ", " << curr_node->bbox.max.z << " )" << std::endl;
-	std::cout << std::endl;
-
-	if (curr_node->left)
-	{
-		printNodeIdsAndBounds(curr_node->left);
-	}
-	if (curr_node->right)
-	{
-		printNodeIdsAndBounds(curr_node->right);
-	}
-}
-
 ////////////////////////////////////////////////////
 // Construtor/destructor.
 ////////////////////////////////////////////////////
@@ -960,7 +906,7 @@ KDTree::KDTree(thrust::host_vector<vec3> verts, thrust::host_vector<ivec3> verte
 {
 	auto timer = MeasureTime::Timer();
 	timer.Start("[KDTree] Build Start");
-	builder = new KDTreeBuilder(verts, vertexIndices);
+	builder = make_shared<KDTreeBuilder>(verts, vertexIndices);
 
 	num_nodes = builder->getNumNodes();
 	root_index = builder->getRootNode()->id;
@@ -986,7 +932,7 @@ KDTree::KDTree(thrust::host_vector<vec3> verts, thrust::host_vector<ivec3> verte
 
 KDTree::~KDTree()
 {
-	delete builder;
+
 }
 
 
@@ -1050,7 +996,7 @@ int KDTree::getNumNodes() const
 // This method populates tree_nodes, an array of KDTreeNodeGPUs and
 // tri_index_list, a list of triangle indices for all leaf nodes to be sent to the device.
 ////////////////////////////////////////////////////
-void KDTree::buildTree(KDTreeBuilderNode *curr_node)
+void KDTree::buildTree(shared_ptr<KDTreeBuilderNode> curr_node)
 {
 	// Get index of node in CPU kd-tree.
 	int index = curr_node->id;
@@ -1096,30 +1042,5 @@ void KDTree::buildTree(KDTreeBuilderNode *curr_node)
 			tree_nodes[index].right_child_index = curr_node->right->id;
 			buildTree(curr_node->right);
 		}
-	}
-}
-
-
-////////////////////////////////////////////////////
-// Debug methods.
-////////////////////////////////////////////////////
-
-void KDTree::printGPUNodeDataWithCorrespondingCPUNodeData(KDTreeBuilderNode *curr_node, bool pause_on_each_node)
-{
-	curr_node->prettyPrint();
-	tree_nodes[curr_node->id].prettyPrint();
-
-	if (pause_on_each_node)
-	{
-		std::cin.ignore();
-	}
-
-	if (curr_node->left)
-	{
-		printGPUNodeDataWithCorrespondingCPUNodeData(curr_node->left, pause_on_each_node);
-	}
-	if (curr_node->right)
-	{
-		printGPUNodeDataWithCorrespondingCPUNodeData(curr_node->right, pause_on_each_node);
 	}
 }

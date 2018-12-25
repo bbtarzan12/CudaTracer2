@@ -7,6 +7,8 @@
 #include <glm.hpp>
 #include "cuda_runtime.h"
 
+#include <memory>
+
 
 using namespace std;
 using namespace glm;
@@ -51,10 +53,10 @@ public:
 	~KDTreeBuilderNode(void);
 
 	boundingBox bbox;
-	KDTreeBuilderNode *left;
-	KDTreeBuilderNode *right;
+	shared_ptr<KDTreeBuilderNode> left;
+	shared_ptr<KDTreeBuilderNode> right;
 	int num_tris;
-	int *tri_indices;
+	vector<int> tri_indices;
 
 	SplitAxis split_plane_axis;
 	float split_plane_value;
@@ -62,12 +64,12 @@ public:
 	bool is_leaf_node;
 
 	// One rope for each face of the AABB encompassing the triangles in a node.
-	KDTreeBuilderNode *ropes[6];
+	shared_ptr<KDTreeBuilderNode> ropes[6];
 
 	int id;
 
 	bool isPointToLeftOfSplittingPlane(const glm::vec3 &p) const;
-	KDTreeBuilderNode* getNeighboringNode(glm::vec3 p);
+	shared_ptr<KDTreeBuilderNode> getNeighboringNode(glm::vec3 p);
 
 	// Debug method.
 	void prettyPrint(void);
@@ -101,13 +103,13 @@ public:
 class KDTreeBuilder
 {
 public:
-	KDTreeBuilder(thrust::host_vector<vec3> verts, thrust::host_vector<ivec3> tris);
+	KDTreeBuilder(thrust::host_vector<vec3> verts, thrust::host_vector<ivec3> vertsIndices);
 	~KDTreeBuilder(void);
 
 	void buildRopeStructure(void);
 
 	// kd-tree getters.
-	KDTreeBuilderNode* getRootNode(void) const;
+	shared_ptr<KDTreeBuilderNode> getRootNode(void) const;
 	int getNumLevels(void) const;
 	int getNumLeaves(void) const;
 	int getNumNodes(void) const;
@@ -118,23 +120,19 @@ public:
 	thrust::host_vector<vec3> getMeshVerts(void) const;
 	thrust::host_vector<ivec3> getMeshTris(void) const;
 
-	// Debug methods.
-	void printNumTrianglesInEachNode(KDTreeBuilderNode *curr_node, int curr_depth = 1);
-	void printNodeIdsAndBounds(KDTreeBuilderNode *curr_node);
-
 private:
 	// kd-tree variables.
-	KDTreeBuilderNode *root;
+	shared_ptr<KDTreeBuilderNode> root;
 	int num_levels, num_leaves, num_nodes;
 
 	thrust::host_vector<vec3> verts;
 	thrust::host_vector<ivec3> tris;
 
-	KDTreeBuilderNode* constructTreeMedianSpaceSplit(int num_tris, int *tri_indices, boundingBox bounds, int curr_depth);
+	shared_ptr<KDTreeBuilderNode> constructTreeMedianSpaceSplit(int num_tris, vector<int> tri_indices, boundingBox bounds, int curr_depth);
 
 	// Rope construction.
-	void buildRopeStructure(KDTreeBuilderNode *curr_node, KDTreeBuilderNode *ropes[], bool is_single_ray_case = false);
-	void optimizeRopes(KDTreeBuilderNode *ropes[], boundingBox bbox);
+	void buildRopeStructure(shared_ptr<KDTreeBuilderNode> curr_node, shared_ptr<KDTreeBuilderNode> ropes[], bool is_single_ray_case = false);
+	void optimizeRopes(shared_ptr<KDTreeBuilderNode> ropes[], boundingBox bbox);
 
 	// Bounding box getters.
 	SplitAxis getLongestBoundingBoxSide(glm::vec3 min, glm::vec3 max);
@@ -164,11 +162,8 @@ public:
 	thrust::host_vector<int> getTriIndexList(void);
 	int getNumNodes(void) const;
 
-	// Debug method.
-	void printGPUNodeDataWithCorrespondingCPUNodeData(KDTreeBuilderNode *curr_node, bool pause_on_each_node = false);
-
 private:
-	KDTreeBuilder* builder;
+	shared_ptr<KDTreeBuilder> builder;
 	thrust::host_vector<KDTreeNode> tree_nodes;
 	thrust::host_vector<int> tri_index_list;
 
@@ -184,7 +179,7 @@ private:
 	thrust::host_vector<ivec3> normalIndices;
 	thrust::host_vector<int> materialIndices;
 
-	void buildTree(KDTreeBuilderNode *curr_node);
+	void buildTree(shared_ptr<KDTreeBuilderNode> curr_node);
 };
 
 #endif

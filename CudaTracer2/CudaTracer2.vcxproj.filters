@@ -128,10 +128,10 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <None Include="fragShader.frag">
+    <None Include="cudaView.frag">
       <Filter>Shader</Filter>
     </None>
-    <None Include="vertShader.vert">
+    <None Include="cudaView.vert">
       <Filter>Shader</Filter>
     </None>
   </ItemGroup>

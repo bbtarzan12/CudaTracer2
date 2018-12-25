@@ -564,6 +564,8 @@ void InitHDRTexture(const char* hdrFileName)
 
 void RenderKernel(const shared_ptr<Camera>& camera, const thrust::host_vector<Sphere>& spheres, KDTree* tree, const RenderOption& option)
 {
+	if (!tree)
+		return;
 	int width = camera->width;
 	int height = camera->height;
 	float memoryAllocTime, renderingTime;

@@ -45,8 +45,8 @@
     <ClInclude Include="TracingCommon.h" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="fragShader.frag" />
-    <None Include="vertShader.vert" />
+    <None Include="cudaView.frag" />
+    <None Include="cudaView.vert" />
   </ItemGroup>
   <ItemGroup>
     <CudaCompile Include="PathKernel.cu" />

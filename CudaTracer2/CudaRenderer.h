@@ -23,12 +23,16 @@ public:
 private:
 	void Update(float deltaTime);
 	void Render(float deltaTime);
+	void LoadObj(const char* fileName);
 
 	float deltaTime = 0;
 
+	// Opengl
+	
+
 	// Opengl - Cuda
-	GLuint programID;
-	GLuint VBO, VAO;
+	GLuint cudaViewProgramID;
+	GLuint cudaVBO, cudaVAO;
 
 	// Cuda
 	GLuint viewGLTexture;
@@ -37,7 +41,7 @@ private:
 
 	// Scene
 	std::vector<Mesh> meshes;
-	KDTree* tree;
+	KDTree* tree = nullptr;
 	thrust::host_vector<Sphere> spheres;
 
 	// GUI
@@ -45,6 +49,7 @@ private:
 	RenderOption currentOption;
 	bool uiRenderingWindow = false;
 	bool uiFileSaveDialog = false;
+	bool uiObjLoadDialog = false;
 };
 
 #endif
