@@ -9,6 +9,7 @@
 #include <fstream>
 #include <sstream>
 #include <iterator>
+#include <string>
 
 #pragma region Mesh
 
@@ -23,8 +24,10 @@ Mesh::Mesh(vec3 position /*= vec3(0)*/, string fileName /*= ""*/)
 
 	string warn;
 	string err;
-	string basePath = "./";
-	bool ret = tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, fileName.c_str(), basePath.c_str(), true);
+
+	size_t found = fileName.find_last_of("/\\");
+	string base = fileName.substr(0, found);
+	bool ret = tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, fileName.c_str(), base.c_str(), true);
 
 	if (!warn.empty())
 	{
