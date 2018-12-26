@@ -63,7 +63,8 @@ Mesh::Mesh(vec3 position /*= vec3(0)*/, string fileName /*= ""*/)
 	{
 		size_t index_offset = 0;
 
-		materialIndices = move(shape.mesh.material_ids);
+		materialIndices.reserve(materialIndices.size() + shape.mesh.material_ids.size());
+		materialIndices.insert(materialIndices.end(), shape.mesh.material_ids.begin(), shape.mesh.material_ids.end());
 		for (auto & triangle : shape.mesh.num_face_vertices)
 		{
 			tinyobj::index_t idx = shape.mesh.indices[index_offset];

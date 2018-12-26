@@ -238,12 +238,19 @@ void CudaRenderer::Render(float deltaTime)
 		}
 		ImGui::Separator();
 
-		ImGui::SameLine(ImGui::GetWindowWidth() - 400);
+		ImGui::SameLine(ImGui::GetWindowWidth() - 500);
 
 		ImGui::PushItemWidth(100);
 		if (ImGui::Combo("combo", (int*) &viewType, viewTypeArray, IM_ARRAYSIZE(viewTypeArray)))
 			camera->dirty = true;
 		ImGui::PopItemWidth();
+
+		if (viewType == ViewType::ACCU)
+		{
+			ImGui::Separator();
+			ImGui::Text("Samples : %d", currentOption.frame);
+		}
+
 		ImGui::Separator();
 		ImGui::Text("%.3f ms/frame (%.1f FPS)", 1000.0f * deltaTime, 1.0f / deltaTime);
 		ImGui::EndMainMenuBar();

@@ -125,6 +125,7 @@ struct KernelOption
 	unsigned long seed;
 	bool enableDof;
 	int maxSamples;
+	int maxDepth;
 	int hdrHeight, hdrWidth;
 
 	KernelArray<Sphere> spheres;

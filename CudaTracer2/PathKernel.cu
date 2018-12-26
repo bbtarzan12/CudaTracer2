@@ -90,7 +90,7 @@ __device__ bool gpuIsPointToLeftOfSplittingPlane(KDTreeNode node, const vec3 &p)
 __device__ int gpuGetNeighboringNodeIndex(KDTreeNode node, vec3 p)
 {
 
-	const float fabsEpsilon = 0.000005;
+	const float fabsEpsilon = 0.0001;
 
 	// Check left face.
 	if (fabs(p.x - node.bbox.min.x) < fabsEpsilon)
@@ -293,7 +293,7 @@ __device__ Ray GetReflectedRay(Ray ray, vec3 hitPoint, vec3 normal, vec3 &mask, 
 		case DIFF:
 		{
 			vec3 nl = dot(normal, ray.direction) < EPSILON ? normal : normal * -1.0f;
-			float r1 = two_pi<float>() * curand_uniform(randState);
+			float phi = two_pi<float>() * curand_uniform(randState);
 			float r2 = curand_uniform(randState);
 			float r2s = sqrt(r2);
 
@@ -304,7 +304,8 @@ __device__ Ray GetReflectedRay(Ray ray, vec3 hitPoint, vec3 normal, vec3 &mask, 
 			else
 				u = normalize(cross(vec3(1.0f, 0.0f, 0.0f), w));
 			vec3 v = cross(w, u);
-			vec3 reflected = normalize((u * __cosf(r1) * r2s + v * __sinf(r1) * r2s + w * sqrt(1 - r2)));
+			vec3 reflected = normalize((u * __cosf(phi) * r2s + v * __sinf(phi) * r2s + w * sqrt(1 - r2)));
+
 			mask *= material.color;
 			return Ray(hitPoint, reflected);
 		}
@@ -384,7 +385,7 @@ __device__ vec3 TraceRay(Ray ray, KernelOption option, curandState* randState)
 	vec3 resultColor = vec3(0);
 	vec3 mask = vec3(1);
 
-	for (int depth = 0; depth < 5; depth++)
+	for (int depth = 0; depth < option.maxDepth; depth++)
 	{
 		ObjectIntersection intersection = Intersect(ray, option.spheres, option.vertexIndices, option.normalIndices, option.materialIndices, option.verts, option.norms, option.materials, option.kdTreeRootIndex, option.kdTreeNodes, option.kdTreeTriIndices);
 
@@ -524,7 +525,7 @@ void InitHDRTexture(const char* hdrFileName)
 	float4* cpuHDRmap;
 
 	src = FreeImage_Load(fif, hdrFileName);
-	dst = FreeImage_ToneMapping(src, FITMO_REINHARD05);
+	dst = FreeImage_ToneMapping(src, FITMO_DRAGO03);
 	bits = FreeImage_GetBits(dst);
 	if (bits == nullptr)
 		return;
@@ -615,6 +616,7 @@ void RenderKernel(const shared_ptr<Camera>& camera, const thrust::host_vector<Sp
 			kernelOption.maxSamples = option.maxSamples;
 			kernelOption.hdrHeight = hdrHeight;
 			kernelOption.hdrWidth = hdrWidth;
+			kernelOption.maxDepth = 50;
 			kernelOption.spheres = ConvertToKernel(cudaSpheres);
 			kernelOption.vertexIndices = thrust::raw_pointer_cast(cuda_vert_indices.data());
 			kernelOption.normalIndices = thrust::raw_pointer_cast(cuda_normal_indices.data());
