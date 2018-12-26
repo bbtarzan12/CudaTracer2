@@ -154,6 +154,45 @@ void CudaRenderer::Render(float deltaTime)
 
 			break;
 		case ViewType::ACCU:
+		{
+			ImGui::SetNextWindowPos(ImVec2(3, 23));
+			ImGui::Begin("CUDA", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoMove);
+
+			ImGui::Text("Samples : %d", currentOption.frame);
+			if (ImGui::DragFloat("Sun Pitch", &sunPitch, 0.1f, -90.0f, 90.0f, "%.1f"))
+			{
+				camera->dirty = true;
+				sunDirty = true;
+			}
+
+			if (ImGui::DragFloat("Sun Yaw", &sunYaw, 1.0f, -.1f, 360.1f, "%.1f"))
+			{
+				camera->dirty = true;
+				sunDirty = true;
+			}
+
+			if (ImGui::DragFloat("Sun Luminance", &sunLuminance, 0.1f, 0.0f, 15.0f, "%.1f"))
+			{
+				camera->dirty = true;
+			}
+
+			if (ImGui::DragFloat("Sun Extent", &sunExtent, 0.001f, 0.0f, 0.1f))
+			{
+				camera->dirty = true;
+			}
+
+			if (sunDirty)
+			{
+				sunDirection.x = cos(radians(sunPitch)) * cos(radians(sunYaw));
+				sunDirection.y = sin(radians(sunPitch));
+				sunDirection.z = cos(radians(sunPitch)) * sin(radians(sunYaw));
+				sunYaw = fmod(sunYaw + 360.0f, 360.0f);
+				sunDirty = false;
+			}
+
+			ImGui::End();
+		}
+		{
 			gpuErrorCheck(cudaGraphicsMapResources(1, &viewResource));
 			gpuErrorCheck(cudaGraphicsSubResourceGetMappedArray(&viewArray, viewResource, 0, 0));
 
@@ -171,6 +210,9 @@ void CudaRenderer::Render(float deltaTime)
 					currentOption.frame = 1;
 					currentOption.isAccumulate = true;
 					currentOption.surf = viewCudaSurfaceObject;
+					currentOption.sunDirection = sunDirection;
+					currentOption.sunLuminance = sunLuminance;
+					currentOption.sunExtent = sunExtent;
 					camera->ResetDirty();
 				}
 
@@ -189,6 +231,7 @@ void CudaRenderer::Render(float deltaTime)
 			glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 			glBindVertexArray(0);
 			currentOption.frame++;
+		}
 			break;
 		case ViewType::IMAGE:
 		{

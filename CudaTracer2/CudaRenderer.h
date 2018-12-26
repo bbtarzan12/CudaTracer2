@@ -44,6 +44,14 @@ private:
 	KDTree* tree = nullptr;
 	thrust::host_vector<Sphere> spheres;
 
+	vec3 sunDirection;
+	float sunPitch = 45;
+	float sunYaw = 0;
+	float sunLuminance = 5.0f;
+	float sunExtent = 0.01f;
+
+	bool sunDirty = true;
+
 	// GUI
 	ViewType viewType = ViewType::ACCU;
 	RenderOption currentOption;

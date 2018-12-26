@@ -131,6 +131,7 @@ struct KernelOption
 	// SunLight
 	vec3 sunDirection;
 	float sunLuminance;
+	float sunExtent;
 
 	KernelArray<Sphere> spheres;
 	
@@ -153,6 +154,12 @@ struct RenderOption
 	int loopX = 1, loopY = 1;
 	bool enableDof = false;
 	bool isAccumulate;
+
+	// SunLight
+	float sunLuminance;
+	float sunExtent;
+	vec3 sunDirection;
+
 	cudaSurfaceObject_t surf;
 };
 
