@@ -128,6 +128,10 @@ struct KernelOption
 	int maxDepth;
 	int hdrHeight, hdrWidth;
 
+	// SunLight
+	vec3 sunDirection;
+	float sunLuminance;
+
 	KernelArray<Sphere> spheres;
 	
 	ivec3* vertexIndices;

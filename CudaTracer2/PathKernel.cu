@@ -19,6 +19,18 @@ __host__ __device__ unsigned int WangHash(unsigned int a)
 	return a;
 }
 
+__device__ vec3 GetConeSample(vec3 dir, curandState* randState)
+{
+	dir = normalize(dir);
+	vec3 o1 = normalize(abs(dir.x) > abs(dir.z) ? vec3(-dir.y, dir.x, 0.0) : vec3(0.0, -dir.z, dir.y));
+	vec3 o2 = normalize(cross(dir, o1));
+	vec2 r = vec2(curand_uniform(randState), curand_uniform(randState));
+	r.x = r.x * 2. * two_pi<float>();
+	r.y = 1.0 - r.y*0.1f;
+	float oneminus = sqrt(1.0 - r.y*r.y);
+	return normalize(cos(r.x)*oneminus*o1 + sin(r.x)*oneminus*o2 + r.y*dir);
+}
+
 __device__ bool gpuTriIntersect(Ray ray, vec3 v0, vec3 v1, vec3 v2, vec3 n0, vec3 n1, vec3 n2, float &t, vec3 &normal)
 {
 	vec3 e1, e2, h, s, q;
@@ -413,9 +425,22 @@ __device__ vec3 TraceRay(Ray ray, KernelOption option, curandState* randState)
 		Material hitMaterial = option.materials[intersection.materialID];
 		vec3 emission = hitMaterial.emission;
 
+		vec3 sunSampleDir = GetConeSample(option.sunDirection, randState);
+		float sunLight = dot(intersection.normal, sunSampleDir);
+		Ray lightRay = Ray(hitPoint + intersection.normal * EPSILON, sunSampleDir);
+
+		ObjectIntersection lightIntersection = Intersect(lightRay, option.spheres, option.vertexIndices, option.normalIndices, option.materialIndices, option.verts, option.norms, option.materials, option.kdTreeRootIndex, option.kdTreeNodes, option.kdTreeTriIndices);
+		if (sunLight > 0.0f && !lightIntersection.hit)
+		{
+			resultColor += sunLight * option.sunLuminance * 0.1f;
+		}
+
 		float maxReflection = max(max(mask.r, mask.g), mask.b);
-		if (curand_uniform(randState) > maxReflection)
-			break;
+		if (depth > 3)
+		{
+			if (curand_uniform(randState) > maxReflection)
+				break;
+		}
 
 		resultColor += mask * emission;
 		ray = GetReflectedRay(ray, hitPoint, intersection.normal, mask, hitMaterial, randState);
@@ -617,6 +642,8 @@ void RenderKernel(const shared_ptr<Camera>& camera, const thrust::host_vector<Sp
 			kernelOption.hdrHeight = hdrHeight;
 			kernelOption.hdrWidth = hdrWidth;
 			kernelOption.maxDepth = 50;
+			kernelOption.sunDirection = normalize(-vec3(-1, -1, -1));
+			kernelOption.sunLuminance = 5.0f;
 			kernelOption.spheres = ConvertToKernel(cudaSpheres);
 			kernelOption.vertexIndices = thrust::raw_pointer_cast(cuda_vert_indices.data());
 			kernelOption.normalIndices = thrust::raw_pointer_cast(cuda_normal_indices.data());
