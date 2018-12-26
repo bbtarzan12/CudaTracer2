@@ -171,12 +171,12 @@ void CudaRenderer::Render(float deltaTime)
 				sunDirty = true;
 			}
 
-			if (ImGui::DragFloat("Sun Luminance", &sunLuminance, 0.1f, 0.0f, 15.0f, "%.1f"))
+			if (ImGui::DragFloat("Sun Luminance", &sunLuminance, 0.1f, 0.0f, 100.0f, "%.1f"))
 			{
 				camera->dirty = true;
 			}
 
-			if (ImGui::DragFloat("Sun Extent", &sunExtent, 0.001f, 0.0f, 0.1f))
+			if (ImGui::DragFloat("Sun Extent", &sunExtent, 0.001f, 0.0f, 0.99f))
 			{
 				camera->dirty = true;
 			}
@@ -188,6 +188,16 @@ void CudaRenderer::Render(float deltaTime)
 				sunDirection.z = cos(radians(sunPitch)) * sin(radians(sunYaw));
 				sunYaw = fmod(sunYaw + 360.0f, 360.0f);
 				sunDirty = false;
+			}
+
+			if (ImGui::DragFloat("Specular", &specular, 0.1f, 0, 1.0f, "%.1f"))
+			{
+				camera->dirty = true;
+			}
+
+			if (ImGui::DragFloat("Metalic", &metalic, 1.0f, 0.0f, 100.0f, "%.f"))
+			{
+				camera->dirty = true;
 			}
 
 			ImGui::End();
@@ -213,6 +223,8 @@ void CudaRenderer::Render(float deltaTime)
 					currentOption.sunDirection = sunDirection;
 					currentOption.sunLuminance = sunLuminance;
 					currentOption.sunExtent = sunExtent;
+					currentOption.metalic = metalic;
+					currentOption.specular = specular;
 					camera->ResetDirty();
 				}
 

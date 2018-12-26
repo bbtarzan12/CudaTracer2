@@ -8,7 +8,7 @@
 using namespace std;
 using namespace glm;
 
-enum MaterialType { NONE, DIFF, GLOSS, TRANS, SPEC };
+enum MaterialType { NONE, DIFF, GLOSS, TRANS, SPEC, MERGE };
 
 struct Material
 {
@@ -21,6 +21,8 @@ struct Material
 	MaterialType type;
 	vec3 color;
 	vec3 emission;
+	float specular;
+	float metalic;
 };
 
 class Mesh

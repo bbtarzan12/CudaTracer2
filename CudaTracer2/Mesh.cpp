@@ -80,8 +80,11 @@ Mesh::Mesh(vec3 position /*= vec3(0)*/, string fileName /*= ""*/)
 	for (auto& objMaterial : materials)
 	{
 		Material material;
+		material.type = MERGE;
 		material.color = vec3(objMaterial.diffuse[0], objMaterial.diffuse[1], objMaterial.diffuse[2]);
 		material.emission = vec3(objMaterial.emission[0], objMaterial.emission[1], objMaterial.emission[2]);
+		material.metalic = 20.0f;
+		material.specular = 1.0f;
 		this->materials.push_back(material);
 	}
 

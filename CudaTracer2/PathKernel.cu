@@ -298,10 +298,25 @@ __device__ ObjectIntersection Intersect(Ray ray, KernelArray<Sphere> spheres, iv
 	return intersection;
 }
 
-__device__ Ray GetReflectedRay(Ray ray, vec3 hitPoint, vec3 normal, vec3 &mask, Material material, curandState* randState)
+__device__ Ray GetReflectedRay(Ray ray, vec3 hitPoint, vec3 normal, vec3 &mask, Material material, curandState* randState, float specular, float metalic)
 {
 	switch (material.type)
 	{
+		case MERGE:
+		{
+			float phi = 2 * pi<float>() * curand_uniform(randState);
+			float r2 = curand_uniform(randState);
+			float cosTheta = powf(1 - r2, 1.0f / (metalic + 1));
+			float sinTheta = sqrt(1 - cosTheta * cosTheta);
+
+			vec3 w = normalize(ray.direction - normal * 2.0f * dot(normal, ray.direction));
+			vec3 u = normalize(cross((fabs(w.x) > .1 ? vec3(0, 1, 0) : vec3(1, 0, 0)), w));
+			vec3 v = cross(w, u);
+
+			vec3 reflected = normalize((u * __cosf(phi) * sinTheta + v * __sinf(phi) * sinTheta) * (1-specular) + w * cosTheta);
+			mask *= material.color;
+			return Ray(hitPoint, reflected);
+		}
 		case DIFF:
 		{
 			vec3 nl = dot(normal, ray.direction) < EPSILON ? normal : normal * -1.0f;
@@ -325,8 +340,8 @@ __device__ Ray GetReflectedRay(Ray ray, vec3 hitPoint, vec3 normal, vec3 &mask, 
 		{
 			float phi = 2 * pi<float>() * curand_uniform(randState);
 			float r2 = curand_uniform(randState);
-			float cosTheta = __powf(1 - r2, 1.0f / (20 + 1));
-			float sinTheta = __sinf(1 - cosTheta * cosTheta);
+			float cosTheta = powf(1 - r2, 1.0f / (20 + 1));
+			float sinTheta = sqrt(1 - cosTheta * cosTheta);
 
 			vec3 w = normalize(ray.direction - normal * 2.0f * dot(normal, ray.direction));
 			vec3 u = normalize(cross((fabs(w.x) > .1 ? vec3(0, 1, 0) : vec3(1, 0, 0)), w));
@@ -443,7 +458,7 @@ __device__ vec3 TraceRay(Ray ray, KernelOption option, curandState* randState)
 		}
 
 		resultColor += mask * emission;
-		ray = GetReflectedRay(ray, hitPoint, intersection.normal, mask, hitMaterial, randState);
+		ray = GetReflectedRay(ray, hitPoint, intersection.normal, mask, hitMaterial, randState, option.specular, option.metalic);
 		mask *= 1 / maxReflection;
 	}
 	return resultColor;
@@ -518,7 +533,7 @@ __global__ void PathAccumulateKernel(Camera* camera, KernelOption option)
 	surf2Dwrite(make_float4(resultColor.r, resultColor.g, resultColor.b, 1.0f), option.surface, x * sizeof(float4), y);
 }
 
-__global__ void PathImageKernel(Camera* camera, KernelArray<Sphere> spheres, KernelArray<Material> materials, KernelOption option, cudaSurfaceObject_t surface)
+__global__ void PathImageKernel(Camera* camera, KernelOption option)
 {
 	//int width = camera->width;
 	//int height = camera->height;
@@ -656,13 +671,15 @@ void RenderKernel(const shared_ptr<Camera>& camera, const thrust::host_vector<Sp
 			kernelOption.kdTreeNodes = thrust::raw_pointer_cast(cuda_kd_tree_nodes.data());
 			kernelOption.kdTreeTriIndices = thrust::raw_pointer_cast(cuda_kd_tree_tri_indices.data());
 			kernelOption.surface = option.surf;
+			kernelOption.metalic = option.metalic;
+			kernelOption.specular = option.specular;
 			if (option.isAccumulate)
 			{
 				PathAccumulateKernel << <grid, block >> > (cudaCamera, kernelOption);
 			}
 			else
 			{
-				//PathImageKernel << <grid, block >> > (cudaCamera, ConvertToKernel(cudaSpheres), ConvertToKernel(cudaMaterials), kernelOption, option.surf);
+				PathImageKernel << <grid, block >> > (cudaCamera, kernelOption);
 			}
 			gpuErrorCheck(cudaDeviceSynchronize());
 		}
@@ -676,6 +693,4 @@ void RenderKernel(const shared_ptr<Camera>& camera, const thrust::host_vector<Sp
 	gpuErrorCheck(cudaEventDestroy(stop));
 
 	gpuErrorCheck(cudaFree(cudaCamera));
-	//gpuErrorCheck(cudaFree(cuda_kd_tree_tri_indices));
-	//delete[] tri_index_array;
 }

@@ -133,6 +133,11 @@ struct KernelOption
 	float sunLuminance;
 	float sunExtent;
 
+	// Test Material
+	float specular;
+	float metalic;
+
+
 	KernelArray<Sphere> spheres;
 	
 	ivec3* vertexIndices;
@@ -154,6 +159,10 @@ struct RenderOption
 	int loopX = 1, loopY = 1;
 	bool enableDof = false;
 	bool isAccumulate;
+
+	// Test Material
+	float specular;
+	float metalic;
 
 	// SunLight
 	float sunLuminance;
