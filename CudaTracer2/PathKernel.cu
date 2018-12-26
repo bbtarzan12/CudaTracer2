@@ -25,7 +25,7 @@ __device__ vec3 GetConeSample(vec3 dir, float extent, curandState* randState)
 	vec3 o1 = normalize(abs(dir.x) > abs(dir.z) ? vec3(-dir.y, dir.x, 0.0) : vec3(0.0, -dir.z, dir.y));
 	vec3 o2 = normalize(cross(dir, o1));
 	vec2 r = vec2(curand_uniform(randState), curand_uniform(randState));
-	r.x = r.x * 2. * two_pi<float>();
+	r.x = r.x * two_pi<float>();
 	r.y = 1.0 - r.y * extent;
 	float oneminus = sqrt(1.0 - r.y*r.y);
 	return normalize(cos(r.x)*oneminus*o1 + sin(r.x)*oneminus*o2 + r.y*dir);
@@ -440,6 +440,11 @@ __device__ vec3 TraceRay(Ray ray, KernelOption option, curandState* randState)
 		Material hitMaterial = option.materials[intersection.materialID];
 		vec3 emission = hitMaterial.emission;
 
+		float maxReflection = max(max(mask.r, mask.g), mask.b);
+		if (curand_uniform(randState) > maxReflection)
+			break;
+
+
 		vec3 sunSampleDir = GetConeSample(option.sunDirection, option.sunExtent, randState);
 		float sunLight = dot(intersection.normal, sunSampleDir);
 		Ray lightRay = Ray(hitPoint + intersection.normal * EPSILON, sunSampleDir);
@@ -448,13 +453,6 @@ __device__ vec3 TraceRay(Ray ray, KernelOption option, curandState* randState)
 		if (sunLight > 0.0f && !lightIntersection.hit)
 		{
 			resultColor += sunLight * option.sunLuminance * option.sunExtent;
-		}
-
-		float maxReflection = max(max(mask.r, mask.g), mask.b);
-		if (depth > 3)
-		{
-			if (curand_uniform(randState) > maxReflection)
-				break;
 		}
 
 		resultColor += mask * emission;
@@ -466,8 +464,8 @@ __device__ vec3 TraceRay(Ray ray, KernelOption option, curandState* randState)
 
 __device__ Ray GetRay(Camera* camera, int x, int y, bool enableDof, curandState* randState)
 {
-	float jitterValueX = curand_uniform(randState) - 0.5f;
-	float jitterValueY = curand_uniform(randState) - 0.5f;
+	float jitterValueX = 2 * curand_uniform(randState) - 1.0f;
+	float jitterValueY = 2 * curand_uniform(randState) - 1.0f;
 
 	vec3 wDir = normalize(-camera->forward);
 	vec3 uDir = normalize(cross(camera->up, wDir));
