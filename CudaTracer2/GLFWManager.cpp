@@ -68,8 +68,7 @@ void GLFWManager::Init(int width, int height, const char* name, void* renderer)
 	cout << "[OpenGL] Renderer: " << glGetString(GL_RENDERER) << endl;
 
 	glClearColor(0.1f, 0.1f, 0.1f, 0.0f);
-	glfwSwapInterval(0); // vSync
-	glEnable(GL_CULL_FACE);
+	glfwSwapInterval(1); // vSync
 	glEnable(GL_DEPTH_TEST);
 	glDepthFunc(GL_LESS);
 }

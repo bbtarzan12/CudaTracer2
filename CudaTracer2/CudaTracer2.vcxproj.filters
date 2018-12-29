@@ -134,6 +134,12 @@
     <None Include="cudaView.vert">
       <Filter>Shader</Filter>
     </None>
+    <None Include="openglView.frag">
+      <Filter>Shader</Filter>
+    </None>
+    <None Include="openglView.vert">
+      <Filter>Shader</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <CudaCompile Include="PathKernel.cu">

@@ -25,6 +25,7 @@ CudaRenderer::~CudaRenderer()
 {
 	cout << "[Renderer] CudaRenderer Free" << endl;
 	glDeleteProgram(cudaViewProgramID);
+	glDeleteProgram(openglViewProgramID);
 	glDeleteBuffers(1, &cudaVBO);
 	glDeleteVertexArrays(1, &cudaVAO);
 	cudaDeviceReset();
@@ -34,22 +35,21 @@ void CudaRenderer::Init(RendererOption option)
 {
 	Renderer::Init(option);
 	GLFWManager::Init(option.width, option.height, "Cuda Tracer", this);
-	InitHDRTexture("river_walk_1_4k.hdr");
+	InitHDRTexture("spruit_sunrise_4k.hdr");
 	cout << "[Renderer] CudaRenderer Init" << endl;
 
 	{
-		// Scene
-		//spheres.push_back(Sphere(vec3(0, 1140, 0), 1000, 1));
-		//spheres.push_back(Sphere(vec3(0, -1140, 0), 1000, 4));
-		//spheres.push_back(Sphere(vec3(1140, 0, 0), 1000, 4));
-		//spheres.push_back(Sphere(vec3(-1140, 0, 0), 1000, 4));
-		//spheres.push_back(Sphere(vec3(0, 0, 1140), 1000, 6));
-		//spheres.push_back(Sphere(vec3(0, 0, -1140), 1000, 5));
-		
-		// Gen Opengl Buffers and Shaders
-		//LoadObj("test3.obj");
+		// Opengl View
+		openglViewProgramID = LoadShaders("openglView.vert", "openglView.frag");
+		camPosID = glGetUniformLocation(openglViewProgramID, "camPos");
+		sunDirID = glGetUniformLocation(openglViewProgramID, "sunDir");
+		modelID = glGetUniformLocation(openglViewProgramID, "model");
+		viewID = glGetUniformLocation(openglViewProgramID, "view");
+		projectionID = glGetUniformLocation(openglViewProgramID, "projection");
+		metalicID = glGetUniformLocation(openglViewProgramID, "metalic");
+		sunPowerID = glGetUniformLocation(openglViewProgramID, "sunPower");
 	}
-
+	
 	{
 		// Cuda Opengl Interop
 		glEnable(GL_TEXTURE_2D);
@@ -146,12 +146,76 @@ void CudaRenderer::Render(float deltaTime)
 	const int width = camera->width;
 	const int height = camera->height;
 
-
 	// OpenGL + Cuda
 	switch (viewType)
 	{
 		case ViewType::OPENGL:
+		{
+			ImGui::SetNextWindowPos(ImVec2(3, 23));
+			ImGui::Begin("CUDA", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoMove);
 
+			ImGui::Text("Samples : %d", currentOption.frame);
+			if (ImGui::DragFloat("Sun Pitch", &sunPitch, 0.1f, -90.0f, 90.0f, "%.1f"))
+			{
+				camera->dirty = true;
+				sunDirty = true;
+			}
+
+			if (ImGui::DragFloat("Sun Yaw", &sunYaw, 1.0f, -.1f, 360.1f, "%.1f"))
+			{
+				camera->dirty = true;
+				sunDirty = true;
+			}
+
+			if (ImGui::DragFloat("Sun Luminance", &sunLuminance, 0.1f, 0.0f, 100.0f, "%.1f"))
+			{
+				camera->dirty = true;
+			}
+
+			if (ImGui::DragFloat("Sun Extent", &sunExtent, 0.001f, 0.0f, 0.99f))
+			{
+				camera->dirty = true;
+			}
+
+			if (sunDirty)
+			{
+				sunDirection.x = cos(radians(sunPitch)) * cos(radians(sunYaw));
+				sunDirection.y = sin(radians(sunPitch));
+				sunDirection.z = cos(radians(sunPitch)) * sin(radians(sunYaw));
+				sunYaw = fmod(sunYaw + 360.0f, 360.0f);
+				sunDirty = false;
+			}
+
+			if (ImGui::DragFloat("Specular", &specular, 0.1f, 0, 1.0f, "%.1f"))
+			{
+				camera->dirty = true;
+			}
+
+			if (ImGui::DragFloat("Metalic", &metalic, 1.0f, 0.0f, 100.0f, "%.f"))
+			{
+				camera->dirty = true;
+			}
+
+			ImGui::End();
+		}
+		{
+			mat4 ModelMatrix = glm::mat4(1.0);
+			for (auto & mesh : meshes)
+			{
+				glUseProgram(openglViewProgramID);
+				glUniformMatrix4fv(modelID, 1, GL_FALSE, value_ptr(ModelMatrix));
+				glUniformMatrix4fv(projectionID, 1, GL_FALSE, value_ptr(camera->proj));
+				glUniformMatrix4fv(viewID, 1, GL_FALSE, value_ptr(camera->view));
+				glUniform3f(camPosID, camera->position.x, camera->position.y, camera->position.z);
+				glUniform3f(sunDirID, -sunDirection.x, -sunDirection.y, -sunDirection.z);
+				glUniform1f(metalicID, glm::max(metalic, 1.0f));
+				glUniform1f(sunPowerID, glm::max(sunExtent * sunLuminance, EPSILON));
+				glBindVertexArray(mesh.vao);
+				glDrawArrays(GL_TRIANGLES, 0, mesh.bufferSize/6);
+				glBindVertexArray(0);
+				glUseProgram(0);
+			}
+		}
 			break;
 		case ViewType::ACCU:
 		{
@@ -241,7 +305,10 @@ void CudaRenderer::Render(float deltaTime)
 
 			glBindVertexArray(cudaVAO);
 			glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+
 			glBindVertexArray(0);
+			glUseProgram(0);
+			glBindTexture(GL_TEXTURE_2D, 0);
 			currentOption.frame++;
 		}
 			break;
@@ -252,7 +319,10 @@ void CudaRenderer::Render(float deltaTime)
 			glUseProgram(cudaViewProgramID);
 			glBindVertexArray(cudaVAO);
 			glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+
 			glBindVertexArray(0);
+			glUseProgram(0);
+			glBindTexture(GL_TEXTURE_2D, 0);
 		}
 		{
 			ImGui::SetNextWindowPos(ImVec2(3, 23));
@@ -411,7 +481,7 @@ void CudaRenderer::Render(float deltaTime)
 
 void CudaRenderer::LoadObj(const char* fileName)
 {
-	meshes.emplace_back(vec3(0), fileName);
+	meshes.emplace_back(fileName);
 
 	vector<vec3> verts;
 	vector<vec3> norms;

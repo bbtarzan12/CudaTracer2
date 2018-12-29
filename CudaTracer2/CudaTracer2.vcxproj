@@ -47,6 +47,8 @@
   <ItemGroup>
     <None Include="cudaView.frag" />
     <None Include="cudaView.vert" />
+    <None Include="openglView.frag" />
+    <None Include="openglView.vert" />
   </ItemGroup>
   <ItemGroup>
     <CudaCompile Include="PathKernel.cu" />

@@ -27,8 +27,11 @@ private:
 
 	float deltaTime = 0;
 
-	// Opengl
-	
+	// Opengl 나중에 정리할 것
+	GLuint openglViewProgramID;
+	GLuint sunDirID, camPosID;
+	GLuint metalicID, sunPowerID;
+	GLuint modelID, viewID, projectionID;
 
 	// Opengl - Cuda
 	GLuint cudaViewProgramID;
@@ -53,11 +56,11 @@ private:
 	bool sunDirty = true;
 
 	// Test Material
-	float metalic = 1.0f;
-	float specular = 1.0f;
+	float metalic = 0.f;
+	float specular = 0.f;
 
 	// GUI
-	ViewType viewType = ViewType::ACCU;
+	ViewType viewType = ViewType::OPENGL;
 	RenderOption currentOption;
 	bool uiRenderingWindow = false;
 	bool uiFileSaveDialog = false;

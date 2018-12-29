@@ -156,7 +156,7 @@ struct RenderOption
 {
 	int frame = 1;
 	int maxSamples = 1;
-	int loopX = 1, loopY = 1;
+	int loopX = 4, loopY = 4;
 	bool enableDof = false;
 	bool isAccumulate;
 

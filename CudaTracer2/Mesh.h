@@ -28,7 +28,8 @@ struct Material
 class Mesh
 {
 public:
-	Mesh(vec3 position = vec3(0), std::string fileName = "");
+	Mesh(std::string fileName = "");
+	~Mesh();
 
 	vector<vec3> verts;
 	vector<vec3> norms;
@@ -37,6 +38,9 @@ public:
 	vector<ivec3> vertexIndices;
 	vector<ivec3> normalIndices;
 	vector<int> materialIndices;
+
+	unsigned int vao, vbo;
+	int bufferSize;
 };
 
 #endif
