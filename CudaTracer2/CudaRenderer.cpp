@@ -18,6 +18,7 @@ const char* viewTypeArray[] = { "OpenGL", "Accumulate", "Image" };
 
 CudaRenderer::CudaRenderer()
 {
+
 }
 
 
@@ -115,6 +116,9 @@ void CudaRenderer::Start()
 {
 	cout << "[Renderer] Start CudaRenderer" << endl;
 
+	// Generate Empty Tree
+	GenerateTree();
+
 	float lastTime = glfwGetTime();
 	while (GLFWManager::WindowShouldClose() == 0)
 	{
@@ -199,9 +203,9 @@ void CudaRenderer::Render(float deltaTime)
 			ImGui::End();
 		}
 		{
-			mat4 ModelMatrix = glm::mat4(1.0);
 			for (auto & mesh : meshes)
 			{
+				mat4 ModelMatrix = glm::mat4(1.0);
 				glUseProgram(openglViewProgramID);
 				glUniformMatrix4fv(modelID, 1, GL_FALSE, value_ptr(ModelMatrix));
 				glUniformMatrix4fv(projectionID, 1, GL_FALSE, value_ptr(camera->proj));
@@ -210,8 +214,13 @@ void CudaRenderer::Render(float deltaTime)
 				glUniform3f(sunDirID, -sunDirection.x, -sunDirection.y, -sunDirection.z);
 				glUniform1f(metalicID, glm::max(metalic, 1.0f));
 				glUniform1f(sunPowerID, glm::max(sunExtent * sunLuminance, EPSILON));
-				glBindVertexArray(mesh.vao);
-				glDrawArrays(GL_TRIANGLES, 0, mesh.bufferSize/6);
+
+
+				//cout << mesh.vao << endl;
+				glBindVertexArray(mesh->vao);
+				glDrawArrays(GL_TRIANGLES, 0, mesh->bufferSize/6);
+
+
 				glBindVertexArray(0);
 				glUseProgram(0);
 			}
@@ -267,6 +276,9 @@ void CudaRenderer::Render(float deltaTime)
 			ImGui::End();
 		}
 		{
+			if (rebuildTree)
+				GenerateTree();
+
 			gpuErrorCheck(cudaGraphicsMapResources(1, &viewResource));
 			gpuErrorCheck(cudaGraphicsSubResourceGetMappedArray(&viewArray, viewResource, 0, 0));
 
@@ -341,45 +353,8 @@ void CudaRenderer::Render(float deltaTime)
 			break;
 	}
 
-	if (ImGui::BeginMainMenuBar())
-	{
-		if (ImGui::BeginMenu("File"))
-		{
-			if (ImGui::MenuItem("Exit"))
-			{
-				glfwSetWindowShouldClose(GLFWManager::GetWindow(), GLFW_TRUE);
-			}
-			if (ImGui::MenuItem("Import Obj")) { uiObjLoadDialog = true; }
-			ImGui::EndMenu();
-		}
-		ImGui::Separator();
-		if (ImGui::BeginMenu("Rendering"))
-		{
-			if (ImGui::MenuItem("Render Image"))
-			{
-				uiRenderingWindow = true;
-			}
-			ImGui::EndMenu();
-		}
-		ImGui::Separator();
-
-		ImGui::SameLine(ImGui::GetWindowWidth() - 500);
-
-		ImGui::PushItemWidth(100);
-		if (ImGui::Combo("combo", (int*) &viewType, viewTypeArray, IM_ARRAYSIZE(viewTypeArray)))
-			camera->dirty = true;
-		ImGui::PopItemWidth();
-
-		if (viewType == ViewType::ACCU)
-		{
-			ImGui::Separator();
-			ImGui::Text("Samples : %d", currentOption.frame);
-		}
-
-		ImGui::Separator();
-		ImGui::Text("%.3f ms/frame (%.1f FPS)", 1000.0f * deltaTime, 1.0f / deltaTime);
-		ImGui::EndMainMenuBar();
-	}
+	RenderUIMenuBar();
+	RenderMeshListWindow();
 
 	if (uiRenderingWindow)
 	{
@@ -474,15 +449,18 @@ void CudaRenderer::Render(float deltaTime)
 	ImGui::Render();
 	ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
-
 	glfwMakeContextCurrent(GLFWManager::GetWindow());
 	glfwSwapBuffers(GLFWManager::GetWindow());
 }
 
 void CudaRenderer::LoadObj(const char* fileName)
 {
-	meshes.emplace_back(fileName);
+	meshes.push_back(make_shared<Mesh>(fileName));
+	rebuildTree = true;
+}
 
+void CudaRenderer::GenerateTree()
+{
 	vector<vec3> verts;
 	vector<vec3> norms;
 	vector<Material> materials;
@@ -496,25 +474,104 @@ void CudaRenderer::LoadObj(const char* fileName)
 		int numNorms = norms.size();
 		int numMaterials = materials.size();
 
-		verts.reserve(verts.size() + mesh.verts.size());
-		norms.reserve(norms.size() + mesh.norms.size());
-		materials.reserve(materials.size() + mesh.materials.size());
-		vertexIndices.reserve(vertexIndices.size() + mesh.vertexIndices.size());
-		normalIndices.reserve(normalIndices.size() + mesh.normalIndices.size());
+		verts.reserve(verts.size() + mesh->verts.size());
+		norms.reserve(norms.size() + mesh->norms.size());
+		materials.reserve(materials.size() + mesh->materials.size());
+		vertexIndices.reserve(vertexIndices.size() + mesh->vertexIndices.size());
+		normalIndices.reserve(normalIndices.size() + mesh->normalIndices.size());
 
-		verts.insert(verts.end(), mesh.verts.begin(), mesh.verts.end());
-		norms.insert(norms.end(), mesh.norms.begin(), mesh.norms.end());
-		materials.insert(materials.end(), mesh.materials.begin(), mesh.materials.end());
+		verts.insert(verts.end(), mesh->verts.begin(), mesh->verts.end());
+		norms.insert(norms.end(), mesh->norms.begin(), mesh->norms.end());
+		materials.insert(materials.end(), mesh->materials.begin(), mesh->materials.end());
 
-		transform(mesh.vertexIndices.begin(), mesh.vertexIndices.end(), back_inserter(vertexIndices), [&](const ivec3& t) { return t + ivec3(numVerts); });
-		transform(mesh.normalIndices.begin(), mesh.normalIndices.end(), back_inserter(normalIndices), [&](const ivec3& t) { return t + ivec3(numNorms); });
-		transform(mesh.materialIndices.begin(), mesh.materialIndices.end(), back_inserter(materialIndices), [&](const int& t) { return t + numMaterials; });
+		transform(mesh->vertexIndices.begin(), mesh->vertexIndices.end(), back_inserter(vertexIndices), [&](const ivec3& t) { return t + ivec3(numVerts); });
+		transform(mesh->normalIndices.begin(), mesh->normalIndices.end(), back_inserter(normalIndices), [&](const ivec3& t) { return t + ivec3(numNorms); });
+		transform(mesh->materialIndices.begin(), mesh->materialIndices.end(), back_inserter(materialIndices), [&](const int& t) { return t + numMaterials; });
 
 	}
 	if (tree)
 		delete tree;
 	tree = new KDTree(verts, vertexIndices, norms, normalIndices, materials, materialIndices);
+	rebuildTree = false;
 	camera->dirty = true;
+}
+
+void CudaRenderer::RenderUIMenuBar()
+{
+	if (ImGui::BeginMainMenuBar())
+	{
+		if (ImGui::BeginMenu("File"))
+		{
+			if (ImGui::MenuItem("Exit"))
+			{
+				glfwSetWindowShouldClose(GLFWManager::GetWindow(), GLFW_TRUE);
+			}
+			if (ImGui::MenuItem("Import Obj")) { uiObjLoadDialog = true; }
+			ImGui::EndMenu();
+		}
+		ImGui::Separator();
+		if (ImGui::BeginMenu("Rendering"))
+		{
+			if (ImGui::MenuItem("Render Image"))
+			{
+				uiRenderingWindow = true;
+			}
+			ImGui::EndMenu();
+		}
+		ImGui::Separator();
+		if (ImGui::BeginMenu("Window"))
+		{
+			if (ImGui::MenuItem("Mesh List"))
+			{
+				uiMeshWindow = true;;
+			}
+			ImGui::EndMenu();
+		}
+		ImGui::Separator();
+
+		ImGui::PushItemWidth(100);
+
+		ImGui::SameLine(ImGui::GetWindowWidth() - 170.0f);
+		ImGui::Separator();
+		ImGui::Text("%.3f ms | %.1f FPS", 1000.0f * deltaTime, 1.0f / deltaTime);
+
+		ImGui::SameLine(ImGui::GetCursorPosX() - 130.0f - ImGui::GetItemRectSize().x - ImGui::GetStyle().ItemSpacing.x);
+		ImGui::Separator();
+		if (ImGui::Combo("", (int*)&viewType, viewTypeArray, IM_ARRAYSIZE(viewTypeArray)))
+			camera->dirty = true;
+
+		if (viewType == ViewType::ACCU)
+		{
+			ImGui::SameLine(ImGui::GetCursorPosX() - 120.0f - ImGui::GetItemRectSize().x - ImGui::GetStyle().ItemSpacing.x);
+			ImGui::Separator();
+			ImGui::Text("Samples : %d", currentOption.frame);
+		}
+
+		ImGui::PopItemWidth();
+		ImGui::EndMainMenuBar();
+	}
+}
+
+void CudaRenderer::RenderMeshListWindow()
+{
+	if (uiMeshWindow)
+	{
+		ImVec2 windowSize = ImVec2(300, GLFWManager::GetWindowHeight() * 0.4f);
+		ImGui::SetNextWindowSize(windowSize);
+		ImGui::SetNextWindowPos(ImVec2(GLFWManager::GetWindowWidth() - windowSize.x - 3, 23));
+		ImGui::Begin("Mesh List", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove);
+
+		for (auto & mesh : meshes)
+		{
+			if (ImGui::TreeNode(mesh->name.c_str()))
+			{
+
+				ImGui::TreePop();
+			}
+		}
+
+		ImGui::End();
+	}
 }
 
 void CudaRenderer::HandleKeyboard(int key, int scancode, int action, int mods)

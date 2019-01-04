@@ -12,16 +12,30 @@
 #include <sstream>
 #include <iterator>
 #include <string>
+#include <algorithm>
 
-#pragma region Mesh
+string Basename(const std::string &filename)
+{
+	string name = filename;
+	const size_t last_slash_idx = name.find_last_of("\\/");
+	if (string::npos != last_slash_idx)
+	{
+		name.erase(0, last_slash_idx + 1);
+	}
 
-Mesh::Mesh(string fileName /*= ""*/)
+	const size_t period_idx = name.rfind('.');
+	if (string::npos != period_idx)
+	{
+		name.erase(period_idx);
+	}
+	return name;
+}
+
+Mesh::Mesh(string filePath)
 {
 	auto timer = MeasureTime::Timer();
 	timer.Start("[Mesh] Load Start");
 
-	vector<float> buffer;
-	
 	tinyobj::attrib_t attrib;
 	vector<tinyobj::shape_t> shapes;
 	vector<tinyobj::material_t> materials;
@@ -29,9 +43,9 @@ Mesh::Mesh(string fileName /*= ""*/)
 	string warn;
 	string err;
 
-	size_t found = fileName.find_last_of("/\\");
-	string base = fileName.substr(0, found);
-	bool ret = tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, fileName.c_str(), base.c_str(), true);
+	size_t found = filePath.find_last_of("/\\");
+	string base = filePath.substr(0, found);
+	bool ret = tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, filePath.c_str(), base.c_str(), true);
 
 	if (!warn.empty())
 	{
@@ -45,12 +59,14 @@ Mesh::Mesh(string fileName /*= ""*/)
 
 	if (!ret)
 	{
-		cout << "Failed to load/parse" << fileName << endl;
+		cout << "Failed to load/parse" << filePath << endl;
 	}
+
+	name = Basename(filePath);
 
 	for (size_t v = 0; v < attrib.vertices.size() / 3; v++)
 	{
-		verts.emplace_back(attrib.vertices[3 * v + 0], attrib.vertices[3 * v + 1], attrib.vertices[3 * v + 2] );
+		verts.emplace_back(attrib.vertices[3 * v + 0], attrib.vertices[3 * v + 1], attrib.vertices[3 * v + 2]);
 	}
 
 	for (size_t v = 0; v < attrib.normals.size() / 3; v++)
@@ -119,17 +135,19 @@ Mesh::Mesh(string fileName /*= ""*/)
 	glGenVertexArrays(1, &vao);
 	glBindVertexArray(vao);
 
+	cout << vao << endl;
+
 	glGenBuffers(1, &vbo);
 	glBindBuffer(GL_ARRAY_BUFFER, vbo);
-	glBufferData(GL_ARRAY_BUFFER, buffer.size() * sizeof(float), &buffer.at(0), GL_STATIC_DRAW);
+	glBufferData(GL_ARRAY_BUFFER, buffer.size() * sizeof(float), &(buffer.at(0)), GL_STATIC_DRAW);
 
 	glEnableVertexAttribArray(0);
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
 	glEnableVertexAttribArray(1);
 	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
-	
-	glBindVertexArray(0);
 
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+	glBindVertexArray(0);
 	bufferSize = buffer.size();
 
 
@@ -138,8 +156,7 @@ Mesh::Mesh(string fileName /*= ""*/)
 
 Mesh::~Mesh()
 {
+	cout << "WOW" << endl;
 	glDeleteBuffers(1, &vbo);
 	glDeleteVertexArrays(1, &vao);
 }
-
-#pragma endregion Mesh

@@ -19,6 +19,9 @@ public:
 	static GLFWwindow* GetWindow();
 	static void GetCursorPos(double* x, double* y);
 	static void SetCursorToPos(double x, double y);
+	static void GetWindowSize(int* width, int* height);
+	static float GetWindowHeight();
+	static float GetWindowWidth();
 
 	// Inputs
 	static bool IsKeyDown(int key);

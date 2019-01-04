@@ -24,6 +24,11 @@ private:
 	void Update(float deltaTime);
 	void Render(float deltaTime);
 	void LoadObj(const char* fileName);
+	void GenerateTree();
+
+	// UI
+	void RenderUIMenuBar();
+	void RenderMeshListWindow();
 
 	float deltaTime = 0;
 
@@ -43,7 +48,8 @@ private:
 	cudaArray* viewArray;
 
 	// Scene
-	std::vector<Mesh> meshes;
+	std::vector<shared_ptr<Mesh>> meshes;
+	bool rebuildTree;
 	KDTree* tree = nullptr;
 	thrust::host_vector<Sphere> spheres;
 
@@ -51,7 +57,7 @@ private:
 	vec3 sunDirection;
 	float sunPitch = 45;
 	float sunYaw = 0;
-	float sunLuminance = 5.0f;
+	float sunLuminance = 0.6f;
 	float sunExtent = 0.01f;
 	bool sunDirty = true;
 
@@ -65,6 +71,7 @@ private:
 	bool uiRenderingWindow = false;
 	bool uiFileSaveDialog = false;
 	bool uiObjLoadDialog = false;
+	bool uiMeshWindow = false;
 };
 
 #endif

@@ -21,7 +21,7 @@ void GLFWManager::Init(int width, int height, const char* name, void* renderer)
 		cerr << "[Error] GLFW 초기화 실패" << endl;
 		exit(EXIT_FAILURE);
 	}
-	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 	glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
@@ -55,9 +55,9 @@ void GLFWManager::Init(int width, int height, const char* name, void* renderer)
 		exit(EXIT_FAILURE);
 	}
 
-	if (!GLEW_VERSION_3_3)
+	if (!GLEW_VERSION_4_3)
 	{
-		cerr << "[Error] 3.3 API가 유효하지 않습니다" << endl;
+		cerr << "[Error] 4.3 API가 유효하지 않습니다" << endl;
 		glfwTerminate();
 		exit(EXIT_FAILURE);
 	}
@@ -91,6 +91,25 @@ void GLFWManager::GetCursorPos(double* x, double* y)
 void GLFWManager::SetCursorToPos(double x, double y)
 {
 	glfwSetCursorPos(GLFWManager::Instance().window, x, y);
+}
+
+void GLFWManager::GetWindowSize(int* width, int* height)
+{
+	glfwGetWindowSize(GLFWManager::Instance().window, width, height);
+}
+
+float GLFWManager::GetWindowHeight()
+{
+	int height, width;
+	glfwGetWindowSize(GLFWManager::Instance().window, &width, &height);
+	return height;
+}
+
+float GLFWManager::GetWindowWidth()
+{
+	int height, width;
+	glfwGetWindowSize(GLFWManager::Instance().window, &width, &height);
+	return width;
 }
 
 bool GLFWManager::IsKeyDown(int key)
