@@ -155,54 +155,6 @@ void CudaRenderer::Render(float deltaTime)
 	{
 		case ViewType::OPENGL:
 		{
-			ImGui::SetNextWindowPos(ImVec2(3, 23));
-			ImGui::Begin("CUDA", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoMove);
-
-			ImGui::Text("Samples : %d", currentOption.frame);
-			if (ImGui::DragFloat("Sun Pitch", &sunPitch, 0.1f, -90.0f, 90.0f, "%.1f"))
-			{
-				camera->dirty = true;
-				sunDirty = true;
-			}
-
-			if (ImGui::DragFloat("Sun Yaw", &sunYaw, 1.0f, -.1f, 360.1f, "%.1f"))
-			{
-				camera->dirty = true;
-				sunDirty = true;
-			}
-
-			if (ImGui::DragFloat("Sun Luminance", &sunLuminance, 0.1f, 0.0f, 100.0f, "%.1f"))
-			{
-				camera->dirty = true;
-			}
-
-			if (ImGui::DragFloat("Sun Extent", &sunExtent, 0.001f, 0.0f, 0.99f))
-			{
-				camera->dirty = true;
-			}
-
-			if (sunDirty)
-			{
-				sunDirection.x = cos(radians(sunPitch)) * cos(radians(sunYaw));
-				sunDirection.y = sin(radians(sunPitch));
-				sunDirection.z = cos(radians(sunPitch)) * sin(radians(sunYaw));
-				sunYaw = fmod(sunYaw + 360.0f, 360.0f);
-				sunDirty = false;
-			}
-
-			if (ImGui::DragFloat("Specular", &specular, 0.1f, 0, 1.0f, "%.1f"))
-			{
-				camera->dirty = true;
-			}
-
-			if (ImGui::DragFloat("Metalic", &metalic, 1.0f, 0.0f, 100.0f, "%.f"))
-			{
-				camera->dirty = true;
-			}
-
-			ImGui::End();
-		}
-		{
 			for (auto & mesh : meshes)
 			{
 				mat4 ModelMatrix = glm::mat4(1.0);
@@ -215,17 +167,89 @@ void CudaRenderer::Render(float deltaTime)
 				glUniform1f(metalicID, glm::max(metalic, 1.0f));
 				glUniform1f(sunPowerID, glm::max(sunExtent * sunLuminance, EPSILON));
 
-
-				//cout << mesh.vao << endl;
 				glBindVertexArray(mesh->vao);
-				glDrawArrays(GL_TRIANGLES, 0, mesh->bufferSize/6);
-
+				glDrawArrays(GL_TRIANGLES, 0, mesh->bufferSize / 6);
 
 				glBindVertexArray(0);
 				glUseProgram(0);
 			}
-		}
 			break;
+		}
+		case ViewType::ACCU:	
+		{
+			if (rebuildTree)
+				GenerateTree();
+
+			gpuErrorCheck(cudaGraphicsMapResources(1, &viewResource));
+			gpuErrorCheck(cudaGraphicsSubResourceGetMappedArray(&viewArray, viewResource, 0, 0));
+
+			cudaResourceDesc viewCudaArrayResourceDesc;
+			{
+				viewCudaArrayResourceDesc.resType = cudaResourceTypeArray;
+				viewCudaArrayResourceDesc.res.array.array = viewArray;
+			}
+
+			cudaSurfaceObject_t viewCudaSurfaceObject;
+			gpuErrorCheck(cudaCreateSurfaceObject(&viewCudaSurfaceObject, &viewCudaArrayResourceDesc));
+			{
+				if (camera->dirty)
+				{
+					currentOption.frame = 1;
+					currentOption.isAccumulate = true;
+					currentOption.surf = viewCudaSurfaceObject;
+					currentOption.sunDirection = sunDirection;
+					currentOption.sunLuminance = sunLuminance;
+					currentOption.sunExtent = sunExtent;
+					currentOption.metalic = metalic;
+					currentOption.specular = specular;
+					currentOption.isTransparent = isTransparent;
+					currentOption.nc = nc;
+					currentOption.nt = nt;
+					camera->ResetDirty();
+				}
+
+				RenderKernel(camera, spheres, tree, currentOption);
+			}
+			gpuErrorCheck(cudaDestroySurfaceObject(viewCudaSurfaceObject));
+			gpuErrorCheck(cudaGraphicsUnmapResources(1, &viewResource));
+			cudaStreamSynchronize(0);
+
+			glActiveTexture(GL_TEXTURE0);
+			glBindTexture(GL_TEXTURE_2D, viewGLTexture);
+
+			glUseProgram(cudaViewProgramID);
+
+			glBindVertexArray(cudaVAO);
+			glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+
+			glBindVertexArray(0);
+			glUseProgram(0);
+			glBindTexture(GL_TEXTURE_2D, 0);
+			currentOption.frame++;
+			break;
+		}
+		case ViewType::IMAGE:
+		{
+			glActiveTexture(GL_TEXTURE0);
+			glBindTexture(GL_TEXTURE_2D, viewGLTexture);
+			glUseProgram(cudaViewProgramID);
+			glBindVertexArray(cudaVAO);
+			glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+
+			glBindVertexArray(0);
+			glUseProgram(0);
+			glBindTexture(GL_TEXTURE_2D, 0);
+			break;
+		}
+		default:
+		{
+			break;
+		}
+	}
+
+	switch (viewType)
+	{
+		case ViewType::OPENGL:
 		case ViewType::ACCU:
 		{
 			ImGui::SetNextWindowPos(ImVec2(3, 23));
@@ -263,79 +287,37 @@ void CudaRenderer::Render(float deltaTime)
 				sunDirty = false;
 			}
 
-			if (ImGui::DragFloat("Specular", &specular, 0.1f, 0, 1.0f, "%.1f"))
-			{
-				camera->dirty = true;
-			}
+			if (ImGui::Checkbox("Transparent", &isTransparent)) { camera->dirty = true; }
 
-			if (ImGui::DragFloat("Metalic", &metalic, 1.0f, 0.0f, 100.0f, "%.f"))
+			if (isTransparent)
 			{
-				camera->dirty = true;
+				if (ImGui::DragFloat("NC", &nc, 0.1f, 0, 10.0f, "%.1f"))
+				{
+					camera->dirty = true;
+				}
+
+				if (ImGui::DragFloat("NT", &nt, 0.1f, 0, 10.0f, "%.1f"))
+				{
+					camera->dirty = true;
+				}
+			}
+			else
+			{
+				if (ImGui::DragFloat("Specular", &specular, 0.1f, 0, 1.0f, "%.1f"))
+				{
+					camera->dirty = true;
+				}
+
+				if (ImGui::DragFloat("Metalic", &metalic, 1.0f, 0.0f, 100.0f, "%.f"))
+				{
+					camera->dirty = true;
+				}
 			}
 
 			ImGui::End();
-		}
-		{
-			if (rebuildTree)
-				GenerateTree();
-
-			gpuErrorCheck(cudaGraphicsMapResources(1, &viewResource));
-			gpuErrorCheck(cudaGraphicsSubResourceGetMappedArray(&viewArray, viewResource, 0, 0));
-
-			cudaResourceDesc viewCudaArrayResourceDesc;
-			{
-				viewCudaArrayResourceDesc.resType = cudaResourceTypeArray;
-				viewCudaArrayResourceDesc.res.array.array = viewArray;
-			}
-
-			cudaSurfaceObject_t viewCudaSurfaceObject;
-			gpuErrorCheck(cudaCreateSurfaceObject(&viewCudaSurfaceObject, &viewCudaArrayResourceDesc));
-			{
-				if (camera->dirty)
-				{
-					currentOption.frame = 1;
-					currentOption.isAccumulate = true;
-					currentOption.surf = viewCudaSurfaceObject;
-					currentOption.sunDirection = sunDirection;
-					currentOption.sunLuminance = sunLuminance;
-					currentOption.sunExtent = sunExtent;
-					currentOption.metalic = metalic;
-					currentOption.specular = specular;
-					camera->ResetDirty();
-				}
-
-				RenderKernel(camera, spheres, tree, currentOption);
-			}
-			gpuErrorCheck(cudaDestroySurfaceObject(viewCudaSurfaceObject));
-			gpuErrorCheck(cudaGraphicsUnmapResources(1, &viewResource));
-			cudaStreamSynchronize(0);
-
-			glActiveTexture(GL_TEXTURE0);
-			glBindTexture(GL_TEXTURE_2D, viewGLTexture);
-
-			glUseProgram(cudaViewProgramID);
-
-			glBindVertexArray(cudaVAO);
-			glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-
-			glBindVertexArray(0);
-			glUseProgram(0);
-			glBindTexture(GL_TEXTURE_2D, 0);
-			currentOption.frame++;
-		}
 			break;
-		case ViewType::IMAGE:
-		{
-			glActiveTexture(GL_TEXTURE0);
-			glBindTexture(GL_TEXTURE_2D, viewGLTexture);
-			glUseProgram(cudaViewProgramID);
-			glBindVertexArray(cudaVAO);
-			glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-
-			glBindVertexArray(0);
-			glUseProgram(0);
-			glBindTexture(GL_TEXTURE_2D, 0);
 		}
+		case ViewType::IMAGE:
 		{
 			ImGui::SetNextWindowPos(ImVec2(3, 23));
 			ImGui::Begin("Image", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoMove);
@@ -347,10 +329,9 @@ void CudaRenderer::Render(float deltaTime)
 			}
 
 			ImGui::End();
-		}
-		break;
-		default:
 			break;
+		}
+
 	}
 
 	RenderUIMenuBar();
@@ -487,7 +468,6 @@ void CudaRenderer::GenerateTree()
 		transform(mesh->vertexIndices.begin(), mesh->vertexIndices.end(), back_inserter(vertexIndices), [&](const ivec3& t) { return t + ivec3(numVerts); });
 		transform(mesh->normalIndices.begin(), mesh->normalIndices.end(), back_inserter(normalIndices), [&](const ivec3& t) { return t + ivec3(numNorms); });
 		transform(mesh->materialIndices.begin(), mesh->materialIndices.end(), back_inserter(materialIndices), [&](const int& t) { return t + numMaterials; });
-
 	}
 	if (tree)
 		delete tree;
@@ -565,7 +545,6 @@ void CudaRenderer::RenderMeshListWindow()
 		{
 			if (ImGui::TreeNode(mesh->name.c_str()))
 			{
-
 				ImGui::TreePop();
 			}
 		}

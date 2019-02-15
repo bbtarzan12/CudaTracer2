@@ -43,10 +43,16 @@ struct Ray
 {
 	vec3 origin;
 	vec3 direction;
+	vec3 invdir;
+	int sign[3];
 	__host__ __device__ Ray(vec3 origin, vec3 direction)
 	{
 		this->origin = origin;
 		this->direction = direction;
+		invdir = 1.0f / direction;
+		sign[0] = (invdir.x < 0);
+		sign[1] = (invdir.y < 0);
+		sign[2] = (invdir.z < 0);
 	}
 };
 
@@ -136,6 +142,9 @@ struct KernelOption
 	// Test Material
 	float specular;
 	float metalic;
+	bool isTransparent;
+	float nc;
+	float nt;
 
 
 	KernelArray<Sphere> spheres;
@@ -163,6 +172,9 @@ struct RenderOption
 	// Test Material
 	float specular;
 	float metalic;
+	bool isTransparent;
+	float nc;
+	float nt;
 
 	// SunLight
 	float sunLuminance;

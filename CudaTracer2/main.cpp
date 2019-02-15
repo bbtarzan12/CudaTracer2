@@ -13,14 +13,14 @@ int main(int argc, char **argv)
 	CameraOption cameraOption;
 	cameraOption.width = rendererOption.width;
 	cameraOption.height = rendererOption.height;
-	cameraOption.position = vec3(4.0f, 3.0f, -3.0f);
+	cameraOption.position = vec3(-14.0694f, -0.301702f, 30.0197f);
 	cameraOption.fov = 70.0f;
 	cameraOption.nearPlane = 0.1f;
 	cameraOption.farPlane = 1000.0f;
 	cameraOption.moveSpeed = 25.0f;
 	cameraOption.mouseSpeed = 10.0f;
-	cameraOption.pitch = -34.529;
-	cameraOption.yaw = 319.545f;
+	cameraOption.pitch = -13.8f;
+	cameraOption.yaw = 157.067f;
 	cameraOption.aperture = 0;
 	cameraOption.focalDistance = 0.1f;
 

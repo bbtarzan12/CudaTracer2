@@ -102,7 +102,7 @@ __device__ bool gpuIsPointToLeftOfSplittingPlane(KDTreeNode node, const vec3 &p)
 __device__ int gpuGetNeighboringNodeIndex(KDTreeNode node, vec3 p)
 {
 
-	const float fabsEpsilon = 0.0001;
+	const float fabsEpsilon = 0.0001f;
 
 	// Check left face.
 	if (fabs(p.x - node.bbox.min.x) < fabsEpsilon)
@@ -143,40 +143,49 @@ __device__ int gpuGetNeighboringNodeIndex(KDTreeNode node, vec3 p)
 
 __device__ bool gpuAABBIntersect(boundingBox bbox, Ray ray, float &tmin, float &tmax)
 {
-	tmin = (bbox.min.x - ray.origin.x) / ray.direction.x;
-	tmax = (bbox.max.x - ray.origin.x) / ray.direction.x;
+	float tymin, tymax, tzmin, tzmax;
 
-	if (tmin > tmax) thrust::swap(tmin, tmax);
-
-	float tymin = (bbox.min.y - ray.origin.y) / ray.direction.y;
-	float tymax = (bbox.max.y - ray.origin.y) / ray.direction.y;
-
-	if (tymin > tymax) thrust::swap(tymin, tymax);
+	tmin = (bbox[ray.sign[0]].x - ray.origin.x) * ray.invdir.x;
+	tmax = (bbox[1 - ray.sign[0]].x - ray.origin.x) * ray.invdir.x;
+	tymin = (bbox[ray.sign[1]].y - ray.origin.y) * ray.invdir.y;
+	tymax = (bbox[1 - ray.sign[1]].y - ray.origin.y) * ray.invdir.y;
 
 	if ((tmin > tymax) || (tymin > tmax))
 		return false;
-
 	if (tymin > tmin)
 		tmin = tymin;
-
 	if (tymax < tmax)
 		tmax = tymax;
 
-	float tzmin = (bbox.min.z - ray.origin.z) / ray.direction.z;
-	float tzmax = (bbox.max.z - ray.origin.z) / ray.direction.z;
-
-	if (tzmin > tzmax) thrust::swap(tzmin, tzmax);
+	tzmin = (bbox[ray.sign[2]].z - ray.origin.z) * ray.invdir.z;
+	tzmax = (bbox[1 - ray.sign[2]].z - ray.origin.z) * ray.invdir.z;
 
 	if ((tmin > tzmax) || (tzmin > tmax))
 		return false;
-
 	if (tzmin > tmin)
 		tmin = tzmin;
-
 	if (tzmax < tmax)
 		tmax = tzmax;
 
 	return true;
+
+	//for (int a = 0; a < 3; a++)
+	//{
+	//	float invD = 1.0f / ray.direction[a];
+	//	float t0 = (bbox.min[a] - ray.origin[a]) * invD;
+	//	float t1 = (bbox.max[a] - ray.origin[a]) * invD;
+	//	if (invD < 0.0f)
+	//	{
+	//		float tmp = t0;
+	//		t0 = t1;
+	//		t1 = tmp;
+	//	}
+	//	tmin = t0 > tmin ? t0 : tmin;
+	//	tmax = t1 < tmax ? t1 : tmax;
+	//	if (tmax <= tmin)
+	//		return false;
+	//}
+	//return true;
 }
 
 __device__ ObjectIntersection StacklessIntersect(Ray ray, int root_index, KDTreeNode *tree_nodes, int *kd_tri_index_list, ivec3 *vertexIndices, ivec3* normalIndices, int* materialIndices, vec3 *verts, vec3* norms, Material* materials)
@@ -210,15 +219,15 @@ __device__ ObjectIntersection StacklessIntersect(Ray ray, int root_index, KDTree
 		// Check intersection with triangles contained in current leaf node.
 		for (int i = curr_node.first_tri_index; i < (curr_node.first_tri_index + curr_node.num_tris); ++i)
 		{
-			ivec3 tri = vertexIndices[kd_tri_index_list[i]];
-			ivec3 norm = normalIndices[kd_tri_index_list[i]];
-			int material = materialIndices[kd_tri_index_list[i]];
-			vec3 v0 = verts[tri.x];
-			vec3 v1 = verts[tri.y];
-			vec3 v2 = verts[tri.z];
-			vec3 n0 = norms[norm.x];
-			vec3 n1 = norms[norm.y];
-			vec3 n2 = norms[norm.z];
+			ivec3& tri = vertexIndices[kd_tri_index_list[i]];
+			ivec3& norm = normalIndices[kd_tri_index_list[i]];
+			int& material = materialIndices[kd_tri_index_list[i]];
+			vec3& v0 = verts[tri.x];
+			vec3& v1 = verts[tri.y];
+			vec3& v2 = verts[tri.z];
+			vec3& n0 = norms[norm.x];
+			vec3& n1 = norms[norm.y];
+			vec3& n2 = norms[norm.z];
 
 			// Perform ray/triangle intersection test.
 			float tmp_t = INF;
@@ -231,6 +240,7 @@ __device__ ObjectIntersection StacklessIntersect(Ray ray, int root_index, KDTree
 				{
 					intersection.hit = true;
 					t_exit = tmp_t;
+					intersection.t = t_exit;
 					intersection.normal = tmp_normal;
 					intersection.materialID = material;
 				}
@@ -242,7 +252,7 @@ __device__ ObjectIntersection StacklessIntersect(Ray ray, int root_index, KDTree
 		bool intersects_curr_node_bounding_box = gpuAABBIntersect(curr_node.bbox, ray, tmp_t_near, tmp_t_far);
 		if (intersects_curr_node_bounding_box)
 		{
-			// Set t_entry to be the entrance point of the next (neighboring) node.
+			// Set t_entry to be the entrance point of the next (neighboring) node.d
 			t_entry = tmp_t_far;
 		}
 		else
@@ -264,7 +274,6 @@ __device__ ObjectIntersection StacklessIntersect(Ray ray, int root_index, KDTree
 
 		curr_node = tree_nodes[new_node_index];
 	}
-	intersection.t = t_exit;
 	return intersection;
 }
 
@@ -298,24 +307,72 @@ __device__ ObjectIntersection Intersect(Ray ray, KernelArray<Sphere> spheres, iv
 	return intersection;
 }
 
-__device__ Ray GetReflectedRay(Ray ray, vec3 hitPoint, vec3 normal, vec3 &mask, Material material, curandState* randState, float specular, float metalic)
+__device__ Ray GetReflectedRay(Ray ray, vec3 hitPoint, vec3 normal, vec3 &mask, Material material, curandState* randState, float specular, float metalic, bool isTransparent, float nc = 1.0f, float nt = 1.5f)
 {
 	switch (material.type)
 	{
 		case MERGE:
 		{
-			float phi = 2 * pi<float>() * curand_uniform(randState);
-			float r2 = curand_uniform(randState);
-			float cosTheta = powf(1 - r2, 1.0f / (metalic + 1));
-			float sinTheta = sqrt(1 - cosTheta * cosTheta);
+			if (isTransparent)
+			{
+				vec3 nl = dot(normal, ray.direction) < EPSILON ? normal : normal * -1.0f;
+				vec3 reflection = ray.direction - normal * 2.0f * dot(normal, ray.direction);
+				bool into = dot(normal, nl) > EPSILON;
+				float nnt = into ? nc / nt : nt / nc;
 
-			vec3 w = normalize(ray.direction - normal * 2.0f * dot(normal, ray.direction));
-			vec3 u = normalize(cross((fabs(w.x) > .1 ? vec3(0, 1, 0) : vec3(1, 0, 0)), w));
-			vec3 v = cross(w, u);
+				float Re, RP, TP, Tr;
+				vec3 tdir = vec3(0.0f, 0.0f, 0.0f);
 
-			vec3 reflected = normalize((u * __cosf(phi) * sinTheta + v * __sinf(phi) * sinTheta) * (1-specular) + w * cosTheta);
-			mask *= material.color;
-			return Ray(hitPoint, reflected);
+				float ddn = dot(ray.direction, nl);
+				float cos2t = 1.0f - nnt * nnt * (1.0f - ddn * ddn);
+
+				if (cos2t < EPSILON) return Ray(hitPoint, reflection);
+
+				if (into)
+					tdir = normalize((ray.direction * nnt - normal * (ddn * nnt + sqrt(cos2t))));
+				else
+					tdir = normalize((ray.direction * nnt + normal * (ddn * nnt + sqrt(cos2t))));
+
+				float a = nt - nc;
+				float b = nt + nc;
+				float R0 = a * a / (b * b);
+
+				float c;
+				if (into)
+					c = 1 + ddn;
+				else
+					c = 1 - dot(tdir, normal);
+
+				Re = R0 + (1 - R0) * c * c * c * c * c;
+				Tr = 1 - Re;
+
+				float P = .25 + .5 * Re;
+				RP = Re / P;
+				TP = Tr / (1 - P);
+
+				if (curand_uniform(randState) < P)
+				{
+					mask *= (RP);
+					return Ray(hitPoint, reflection);
+				}
+				mask *= (TP);
+				return Ray(hitPoint, tdir);
+			}
+			else
+			{
+				float phi = 2 * pi<float>() * curand_uniform(randState);
+				float r2 = curand_uniform(randState);
+				float cosTheta = powf(1 - r2, 1.0f / (metalic + 1));
+				float sinTheta = sqrt(1 - cosTheta * cosTheta);
+
+				vec3 w = normalize(ray.direction - normal * 2.0f * dot(normal, ray.direction));
+				vec3 u = normalize(cross((fabs(w.x) > .1 ? vec3(0, 1, 0) : vec3(1, 0, 0)), w));
+				vec3 v = cross(w, u);
+
+				vec3 reflected = normalize((u * __cosf(phi) * sinTheta + v * __sinf(phi) * sinTheta) * (1 - specular) + w * cosTheta);
+				mask *= material.color;
+				return Ray(hitPoint, reflected);
+			}
 		}
 		case DIFF:
 		{
@@ -356,8 +413,6 @@ __device__ Ray GetReflectedRay(Ray ray, vec3 hitPoint, vec3 normal, vec3 &mask, 
 			vec3 nl = dot(normal, ray.direction) < EPSILON ? normal : normal * -1.0f;
 			vec3 reflection = ray.direction - normal * 2.0f * dot(normal, ray.direction);
 			bool into = dot(normal, nl) > EPSILON;
-			float nc = 1.0f;
-			float nt = 1.5f;
 			float nnt = into ? nc / nt : nt / nc;
 
 			float Re, RP, TP, Tr;
@@ -444,7 +499,6 @@ __device__ vec3 TraceRay(Ray ray, KernelOption option, curandState* randState)
 		if (curand_uniform(randState) > maxReflection)
 			break;
 
-
 		vec3 sunSampleDir = GetConeSample(option.sunDirection, option.sunExtent, randState);
 		float sunLight = dot(intersection.normal, sunSampleDir);
 		Ray lightRay = Ray(hitPoint + intersection.normal * EPSILON, sunSampleDir);
@@ -456,7 +510,7 @@ __device__ vec3 TraceRay(Ray ray, KernelOption option, curandState* randState)
 		}
 
 		resultColor += mask * emission;
-		ray = GetReflectedRay(ray, hitPoint, intersection.normal, mask, hitMaterial, randState, option.specular, option.metalic);
+		ray = GetReflectedRay(ray, hitPoint, intersection.normal, mask, hitMaterial, randState, hitMaterial.specular, hitMaterial.metalic, hitMaterial.isTransparent, option.nc, option.nt);
 		mask *= 1 / maxReflection;
 	}
 	return resultColor;
@@ -671,6 +725,9 @@ void RenderKernel(const shared_ptr<Camera>& camera, const thrust::host_vector<Sp
 			kernelOption.surface = option.surf;
 			kernelOption.metalic = option.metalic;
 			kernelOption.specular = option.specular;
+			kernelOption.isTransparent = option.isTransparent;
+			kernelOption.nc = option.nc;
+			kernelOption.nt = option.nt;
 			if (option.isAccumulate)
 			{
 				PathAccumulateKernel << <grid, block >> > (cudaCamera, kernelOption);

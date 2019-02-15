@@ -3,10 +3,10 @@
   <ItemGroup>
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Renderer.cpp">
-      <Filter>Core</Filter>
+      <Filter>Common\Core</Filter>
     </ClCompile>
     <ClCompile Include="GLFWManager.cpp">
-      <Filter>Core</Filter>
+      <Filter>Common\Core</Filter>
     </ClCompile>
     <ClCompile Include="ShaderCommon.cpp">
       <Filter>Common</Filter>
@@ -53,10 +53,10 @@
       <Filter>Common</Filter>
     </ClInclude>
     <ClInclude Include="Renderer.h">
-      <Filter>Core</Filter>
+      <Filter>Common\Core</Filter>
     </ClInclude>
     <ClInclude Include="GLFWManager.h">
-      <Filter>Core</Filter>
+      <Filter>Common\Core</Filter>
     </ClInclude>
     <ClInclude Include="CudaRenderer.h">
       <Filter>CudaRenderer</Filter>
@@ -114,9 +114,6 @@
     <Filter Include="CudaRenderer">
       <UniqueIdentifier>{2fb57dd9-4e17-4ee0-b172-f06f55f20cb8}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Core">
-      <UniqueIdentifier>{b538814c-f0ed-4ba6-a09b-4cd7972ae098}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Libraries">
       <UniqueIdentifier>{d9f710e1-af8c-473d-a175-e7d1de35832a}</UniqueIdentifier>
     </Filter>
@@ -125,6 +122,9 @@
     </Filter>
     <Filter Include="Libraries\tiny_obj_loader">
       <UniqueIdentifier>{daf3b043-cb8a-4e72-a4ec-dc1f1de3b4bb}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Common\Core">
+      <UniqueIdentifier>{b538814c-f0ed-4ba6-a09b-4cd7972ae098}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>

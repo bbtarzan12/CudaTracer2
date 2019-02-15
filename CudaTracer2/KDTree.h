@@ -44,6 +44,13 @@ struct Triangle
 struct boundingBox
 {
 	vec3 min, max;
+	__host__ __device__ vec3& operator[] (int sign)
+	{
+		if (sign == 0)
+			return min;
+		else
+			return max;
+	}
 };
 
 class KDTreeBuilderNode

@@ -64,6 +64,9 @@ private:
 	// Test Material
 	float metalic = 0.f;
 	float specular = 0.f;
+	bool isTransparent = false;
+	float nc = 1.0f;
+	float nt = 1.5f;
 
 	// GUI
 	ViewType viewType = ViewType::OPENGL;

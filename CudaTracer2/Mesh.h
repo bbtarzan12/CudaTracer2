@@ -23,6 +23,9 @@ struct Material
 	vec3 emission;
 	float specular;
 	float metalic;
+	bool isTransparent = false;
+	float nc = 1.0f;
+	float nt = 1.5f;
 };
 
 class Mesh

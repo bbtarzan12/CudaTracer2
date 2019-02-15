@@ -14,6 +14,11 @@
 #include <string>
 #include <algorithm>
 
+inline bool IsNumber(const std::string& s)
+{
+	return !s.empty() && std::find_if(s.begin(), s.end(), [](char c) { return !std::isdigit(c); }) == s.end();
+}
+
 string Basename(const std::string &filename)
 {
 	string name = filename;
@@ -127,15 +132,15 @@ Mesh::Mesh(string filePath)
 		material.type = MERGE;
 		material.color = vec3(objMaterial.diffuse[0], objMaterial.diffuse[1], objMaterial.diffuse[2]);
 		material.emission = vec3(objMaterial.emission[0], objMaterial.emission[1], objMaterial.emission[2]);
-		material.metalic = 20.0f;
-		material.specular = 1.0f;
+		material.metalic = 0.f;
+		material.specular = 0.f;
+		material.isTransparent = IsNumber(name);
+		
 		this->materials.push_back(material);
 	}
 
 	glGenVertexArrays(1, &vao);
 	glBindVertexArray(vao);
-
-	cout << vao << endl;
 
 	glGenBuffers(1, &vbo);
 	glBindBuffer(GL_ARRAY_BUFFER, vbo);
@@ -156,7 +161,6 @@ Mesh::Mesh(string filePath)
 
 Mesh::~Mesh()
 {
-	cout << "WOW" << endl;
 	glDeleteBuffers(1, &vbo);
 	glDeleteVertexArrays(1, &vao);
 }
