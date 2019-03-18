@@ -46,6 +46,7 @@ struct Camera
 		this->width = width;
 		this->height = height;
 		this->aspectRatio = width / (float) height;
+		dirty = true;
 	}
 
 	void UpdateCamera(float deltaTime, vec2 keyboardInput = vec2(0), vec2 mouseInput = vec2(0))
@@ -77,7 +78,7 @@ struct Camera
 	}
 
 	bool dirty = true;
-	int width, height;
+	unsigned int width, height;
 	float moveSpeed, mouseSpeed;
 	float nearPlane, farPlane;
 	float fov;

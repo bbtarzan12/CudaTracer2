@@ -1,14 +1,13 @@
-#include "CudaRenderer.h"
+#include "CPURenderer.h"
+
 
 int main(int argc, char **argv)
 {
-
-	unique_ptr<Renderer> renderer = make_unique<CudaRenderer>();
+	unique_ptr<Renderer> renderer = make_unique<CPURenderer>();
 
 	RendererOption rendererOption;
-	rendererOption.width = 1280;
-	rendererOption.height = 720;
-	rendererOption.type = RendererType::CUDA;
+	rendererOption.width = 1280/2;
+	rendererOption.height = 720/2;
 
 	CameraOption cameraOption;
 	cameraOption.width = rendererOption.width;

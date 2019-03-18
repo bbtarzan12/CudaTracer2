@@ -4,11 +4,8 @@
 #include "GLFWManager.h"
 #include "TracingCommon.h"
 
-enum class RendererType { CUDA };
-
 struct RendererOption
 {
-	RendererType type;
 	int width, height;
 };
 

@@ -44,6 +44,15 @@
     <ClCompile Include="MeasureTime.cpp">
       <Filter>Common</Filter>
     </ClCompile>
+    <ClCompile Include="FractalRenderer.cpp">
+      <Filter>FractalRenderer</Filter>
+    </ClCompile>
+    <ClCompile Include="CPURenderer.cpp">
+      <Filter>CPURenderer</Filter>
+    </ClCompile>
+    <ClCompile Include="CPUKernel.cpp">
+      <Filter>CPURenderer</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="TracingCommon.h">
@@ -103,6 +112,18 @@
     <ClInclude Include="tiny_obj_loader.h">
       <Filter>Libraries\tiny_obj_loader</Filter>
     </ClInclude>
+    <ClInclude Include="FractalRenderer.h">
+      <Filter>FractalRenderer</Filter>
+    </ClInclude>
+    <ClInclude Include="FractalKernel.cuh">
+      <Filter>FractalRenderer</Filter>
+    </ClInclude>
+    <ClInclude Include="CPURenderer.h">
+      <Filter>CPURenderer</Filter>
+    </ClInclude>
+    <ClInclude Include="CPUKernel.h">
+      <Filter>CPURenderer</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Common">
@@ -126,6 +147,12 @@
     <Filter Include="Common\Core">
       <UniqueIdentifier>{b538814c-f0ed-4ba6-a09b-4cd7972ae098}</UniqueIdentifier>
     </Filter>
+    <Filter Include="FractalRenderer">
+      <UniqueIdentifier>{575499e4-7af1-4279-8c1e-a37078dea829}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="CPURenderer">
+      <UniqueIdentifier>{841bad7b-0169-44ac-98db-62b83a76c4d1}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <None Include="cudaView.frag">
@@ -144,6 +171,9 @@
   <ItemGroup>
     <CudaCompile Include="PathKernel.cu">
       <Filter>CudaRenderer</Filter>
+    </CudaCompile>
+    <CudaCompile Include="FractalKernel.cu">
+      <Filter>FractalRenderer</Filter>
     </CudaCompile>
   </ItemGroup>
 </Project>

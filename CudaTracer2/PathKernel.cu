@@ -506,7 +506,7 @@ __device__ vec3 TraceRay(Ray ray, KernelOption option, curandState* randState)
 		ObjectIntersection lightIntersection = Intersect(lightRay, option.spheres, option.vertexIndices, option.normalIndices, option.materialIndices, option.verts, option.norms, option.materials, option.kdTreeRootIndex, option.kdTreeNodes, option.kdTreeTriIndices);
 		if (sunLight > 0.0f && !lightIntersection.hit)
 		{
-			resultColor += sunLight * option.sunLuminance;
+			resultColor += sunLight * option.sunLuminance * mask;
 		}
 
 		resultColor += mask * emission;
