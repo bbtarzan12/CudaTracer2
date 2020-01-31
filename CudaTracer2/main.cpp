@@ -1,9 +1,10 @@
-#include "CPURenderer.h"
+//#include "CPURenderer.h"
+#include "CudaRenderer.h"
 
 
 int main(int argc, char **argv)
 {
-	unique_ptr<Renderer> renderer = make_unique<CPURenderer>();
+	unique_ptr<Renderer> renderer = make_unique<CudaRenderer>();
 
 	RendererOption rendererOption;
 	rendererOption.width = 1280/2;
